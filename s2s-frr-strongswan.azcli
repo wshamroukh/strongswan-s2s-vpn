@@ -1,0 +1,403 @@
+rg=s2s-frr-strongswan
+location=centralindia
+
+site1_vnet_name=site1
+site1_vnet_address=10.1.0.0/16
+site1_gw_subnet_name=gw
+site1_gw_subnet_address=10.1.0.0/24
+site1_gw_asn=65501
+site1_gw_vti0=10.1.0.250
+site1_vm_subnet_name=vm
+site1_vm_subnet_address=10.1.1.0/24
+
+site2_vnet_name=site2
+site2_vnet_address=10.2.0.0/16
+site2_gw_subnet_name=gw
+site2_gw_subnet_address=10.2.0.0/24
+site2_gw_asn=65502
+site2_gw_vti0=10.2.0.250
+site2_vm_subnet_name=vm
+site2_vm_subnet_address=10.2.1.0/24
+
+default_address1=0.0.0.0/1
+default_address2=128.0.0.0/1
+admin_username=$(whoami)
+myip=$(curl -s4 https://ifconfig.co/)
+psk=secret12345
+vm_size=Standard_B2ats_v2
+vm_image=$(az vm image list -l $location -p Canonical -s 22_04-lts --all --query "[?offer=='0001-com-ubuntu-server-jammy'].urn" -o tsv | sort -u | tail -n 1) && echo $vm_image
+
+cloudinit_file=~/cloudinit.txt
+cat <<EOF > $cloudinit_file
+#cloud-config
+runcmd:
+  - curl -s https://deb.frrouting.org/frr/keys.gpg | sudo tee /usr/share/keyrings/frrouting.gpg > /dev/null
+  - echo deb [signed-by=/usr/share/keyrings/frrouting.gpg] https://deb.frrouting.org/frr \$(lsb_release -s -c) frr-stable | sudo tee -a /etc/apt/sources.list.d/frr.list
+  - sudo apt update && sudo apt install -y frr frr-pythontools
+  - sudo apt install -y strongswan tcptraceroute net-tools
+  - sudo sed -i "/bgpd=no/ s//bgpd=yes/" /etc/frr/daemons
+  - sudo service frr restart
+  - touch /etc/strongswan.d/ipsec-vti.sh
+  - chmod +x /etc/strongswan.d/ipsec-vti.sh
+  - cp /etc/ipsec.conf /etc/ipsec.conf.bak
+  - cp /etc/ipsec.secrets /etc/ipsec.secrets.bak
+  - echo "net.ipv4.conf.all.forwarding=1" | sudo tee -a /etc/sysctl.conf
+  - echo "net.ipv4.conf.default.forwarding=1" | sudo tee -a /etc/sysctl.conf
+  - sudo sysctl -p
+EOF
+
+function first_ip(){
+    subnet=$1
+    IP=$(echo $subnet | cut -d/ -f 1)
+    IP_HEX=$(printf '%.2X%.2X%.2X%.2X\n' `echo $IP | sed -e 's/\./ /g'`)
+    NEXT_IP_HEX=$(printf %.8X `echo $(( 0x$IP_HEX + 1 ))`)
+    NEXT_IP=$(printf '%d.%d.%d.%d\n' `echo $NEXT_IP_HEX | sed -r 's/(..)/0x\1 /g'`)
+    echo "$NEXT_IP"
+}
+
+# Resource Groups
+echo -e "\e[1;36mCreating $rg Resource Group...\e[0m"
+az group create -l $location -n $rg -o none
+
+# site1 vnet
+echo -e "\e[1;36mCreating $site1_vnet_name VNet...\e[0m"
+az network vnet create -g $rg -n $site1_vnet_name -l $location --address-prefixes $site1_vnet_address --subnet-name $site1_vm_subnet_name --subnet-prefixes $site1_vm_subnet_address -o none
+az network vnet subnet create -g $rg -n $site1_gw_subnet_name --address-prefixes $site1_gw_subnet_address --vnet-name $site1_vnet_name -o none
+
+# site2 vnet
+echo -e "\e[1;36mCreating $site2_vnet_name VNet...\e[0m"
+az network vnet create -g $rg -n $site2_vnet_name -l $location --address-prefixes $site2_vnet_address --subnet-name $site2_vm_subnet_name --subnet-prefixes $site2_vm_subnet_address -o none
+az network vnet subnet create -g $rg -n $site2_gw_subnet_name --address-prefixes $site2_gw_subnet_address --vnet-name $site2_vnet_name -o none
+
+# site1 gw vm
+echo -e "\e[1;36mDeploying $site1_vnet_name-gw VM...\e[0m"
+az network public-ip create -g $rg -n $site1_vnet_name-gw -l $location --allocation-method Static --sku Basic -o none
+az network nic create -g $rg  -n $site1_vnet_name-gw -l $location --vnet-name $site1_vnet_name --subnet $site1_gw_subnet_name --ip-forwarding true --public-ip-address $site1_vnet_name-gw -o none
+az vm create -g $rg -n $site1_vnet_name-gw -l $location --image $vm_image --nics $site1_vnet_name-gw --os-disk-name $site1_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file -o none
+# site1 gw details
+site1_gw_pubip=$(az network public-ip show -g $rg -n $site1_vnet_name-gw --query ipAddress -o tsv) && echo $site1_vnet_name-gw public ip: $site1_gw_pubip
+site1_gw_private_ip=$(az network nic show -g $rg -n $site1_vnet_name-gw --query ipConfigurations[].privateIPAddress -o tsv)  && echo $site1_vnet_name-gw private ip: $site1_gw_private_ip
+site1_gw_nic_default_gw=$(first_ip $site1_gw_subnet_address) && echo $site1_vnet_name-gw default gateway ip: $site1_gw_nic_default_gw
+
+# site2 gw vm
+echo -e "\e[1;36mDeploying $site2_vnet_name-gw VM...\e[0m"
+az network public-ip create -g $rg -n $site2_vnet_name-gw -l $location --allocation-method Static --sku Basic -o none
+az network nic create -g $rg  -n $site2_vnet_name-gw -l $location --vnet-name $site2_vnet_name --subnet $site2_gw_subnet_name --ip-forwarding true --public-ip-address $site2_vnet_name-gw -o none
+az vm create -g $rg -n $site2_vnet_name-gw -l $location --image $vm_image --nics $site2_vnet_name-gw --os-disk-name $site2_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file -o none
+# site2 gw details
+site2_gw_pubip=$(az network public-ip show -g $rg -n $site2_vnet_name-gw --query ipAddress -o tsv) && echo $site2_vnet_name-gw public ip: $site2_gw_pubip
+site2_gw_private_ip=$(az network nic show -g $rg -n $site2_vnet_name-gw --query ipConfigurations[].privateIPAddress -o tsv)  && echo $site2_vnet_name-gw private ip: $site2_gw_private_ip
+site2_gw_nic_default_gw=$(first_ip $site2_gw_subnet_address) echo $site2_vnet_name-gw default gateway ip: $site2_gw_nic_default_gw
+
+#######################
+# site1 VPN Config  #
+#######################
+echo -e "\e[1;36mCreating S2S/BGP VPN Config files for $site1_vnet_name-gw gateway VM...\e[0m"
+# ipsec.secrets
+psk_file=~/ipsec.secrets
+cat <<EOF > $psk_file
+$site1_gw_pubip $site2_gw_pubip : PSK $psk
+EOF
+
+# ipsec.conf
+ipsec_file=~/ipsec.conf
+cat <<EOF > $ipsec_file
+conn %default
+         # Authentication Method : Pre-Shared Key
+         leftauth=psk
+         rightauth=psk
+         ike=aes256-sha1-modp1024!
+         ikelifetime=28800s
+         # Phase 1 Negotiation Mode : main
+         aggressive=no
+         esp=aes256-sha1!
+         lifetime=3600s
+         keylife=3600s
+         type=tunnel
+         dpddelay=10s
+         dpdtimeout=30s
+         keyexchange=ikev2
+         rekey=yes
+         reauth=no
+         dpdaction=restart
+         closeaction=restart
+         leftsubnet=0.0.0.0/0,::/0
+         rightsubnet=0.0.0.0/0,::/0
+         leftupdown=/etc/strongswan.d/ipsec-vti.sh
+         installpolicy=yes
+         compress=no
+         mobike=no
+conn $site2_vnet_name-gw
+         # Site1 Gateway Private IP Address :
+         left=$site1_gw_private_ip
+         # Site1 Gateway Public IP Address :
+         leftid=$site1_gw_pubip
+         # Site2 Gateway Public IP address :
+         right=$site2_gw_pubip
+         rightid=$site2_gw_pubip
+         auto=start
+         # unique number per IPSEC Tunnel eg. 100, 101 etc
+         mark=101
+EOF
+
+
+# ipsec-vti.sh
+ipsec_vti_file=~/ipsec-vti.sh
+tee -a $ipsec_vti_file > /dev/null <<'EOT'
+#!/bin/bash
+
+#
+# /etc/strongswan.d/ipsec-vti.sh
+#
+
+IP=$(which ip)
+IPTABLES=$(which iptables)
+PLUTO_MARK_OUT_ARR=(${PLUTO_MARK_OUT//// })
+PLUTO_MARK_IN_ARR=(${PLUTO_MARK_IN//// })
+case "$PLUTO_CONNECTION" in
+  $site2_vnet_name-gw)
+    VTI_INTERFACE=vti0
+    VTI_LOCALADDR=$site1_gw_vti0/32
+    VTI_REMOTEADDR=$site2_gw_vti0/32
+    ;;
+esac
+case "${PLUTO_VERB}" in
+    up-client)
+        $IP link add ${VTI_INTERFACE} type vti local ${PLUTO_ME} remote ${PLUTO_PEER} okey ${PLUTO_MARK_OUT_ARR[0]} ikey ${PLUTO_MARK_IN_ARR[0]}
+        sysctl -w net.ipv4.conf.${VTI_INTERFACE}.disable_policy=1
+        sysctl -w net.ipv4.conf.${VTI_INTERFACE}.rp_filter=2 || sysctl -w net.ipv4.conf.${VTI_INTERFACE}.rp_filter=0
+        $IP addr add ${VTI_LOCALADDR} remote ${VTI_REMOTEADDR} dev ${VTI_INTERFACE}
+        $IP link set ${VTI_INTERFACE} up mtu 1350
+        $IPTABLES -t mangle -I FORWARD -o ${VTI_INTERFACE} -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+        $IPTABLES -t mangle -I INPUT -p esp -s ${PLUTO_PEER} -d ${PLUTO_ME} -j MARK --set-xmark ${PLUTO_MARK_IN}
+        $IP route flush table 220
+        ;;
+    down-client)
+        $IP link del ${VTI_INTERFACE}
+        $IPTABLES -t mangle -D FORWARD -o ${VTI_INTERFACE} -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+        $IPTABLES -t mangle -D INPUT -p esp -s ${PLUTO_PEER} -d ${PLUTO_ME} -j MARK --set-xmark ${PLUTO_MARK_IN}
+        ;;
+esac
+
+# Enable IPv4 forwarding
+sysctl -w net.ipv4.ip_forward=1
+sysctl -w net.ipv4.conf.eth0.disable_xfrm=1
+sysctl -w net.ipv4.conf.eth0.disable_policy=1
+EOT
+
+sed -i "/\$site1_gw_vti0/ s//$site1_gw_vti0/" $ipsec_vti_file
+sed -i "/\$site2_gw_vti0/ s//$site2_gw_vti0/" $ipsec_vti_file
+sed -i "/\$site2_vnet_name-gw/ s//$site2_vnet_name-gw/" $ipsec_vti_file
+
+
+# frr.conf
+frr_conf_file=~/frr.conf
+cat <<EOF > $frr_conf_file
+frr version 10.2
+frr defaults traditional
+hostname $site1_vnet_name-gw
+log syslog informational
+no ipv6 forwarding
+service integrated-vtysh-config
+!
+ip route $default_address1 $site1_gw_nic_default_gw
+ip route $default_address2 $site1_gw_nic_default_gw
+ip route $site1_vnet_address $site1_gw_nic_default_gw
+ip route $site2_gw_vti0/32 $site1_gw_nic_default_gw
+!
+router bgp $site1_gw_asn
+ bgp router-id $site1_gw_private_ip
+ no bgp ebgp-requires-policy
+ neighbor $site2_gw_vti0 remote-as $site2_gw_asn
+ neighbor $site2_gw_vti0 description $site2_vnet_name-gw
+ neighbor $site2_gw_vti0 ebgp-multihop 2
+ !
+ address-family ipv4 unicast
+  network $site1_vnet_address
+  neighbor $site2_gw_vti0 soft-reconfiguration inbound
+ exit-address-family
+exit
+!
+EOF
+
+##### copy files to onprem gw
+echo -e "\e[1;36mCopying and applying S2S/BGP VPN Config files to $site1_vnet_name-gw gateway VM...\e[0m"
+scp -o StrictHostKeyChecking=no $psk_file $ipsec_file $ipsec_vti_file $frr_conf_file $site1_gw_pubip:/home/$admin_username
+scp -o StrictHostKeyChecking=no ~/.ssh/* $site1_gw_pubip:/home/$admin_username/.ssh/
+# This is needed for clients to connect to internet through onprem gw
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo mv /home/$admin_username/frr.conf /etc/frr/frr.conf && sudo mv /home/$admin_username/ipsec.* /etc/ && sudo mv /home/$admin_username/ipsec-vti.sh /etc/strongswan.d/ && chmod +x /etc/strongswan.d/ipsec-vti.sh && sudo service frr restart && sudo ipsec restart"
+
+
+# clean up config files
+rm $psk_file $ipsec_file $ipsec_vti_file $frr_conf_file
+# clear up the cloudinit file
+rm $cloudinit_file
+
+#######################
+# site2 VPN Config  #
+#######################
+echo -e "\e[1;36mCreating S2S/BGP VPN Config files for $site2_vnet_name-gw gateway VM...\e[0m"
+# ipsec.secrets
+psk_file=~/ipsec.secrets
+cat <<EOF > $psk_file
+$site2_gw_pubip $site1_gw_pubip : PSK $psk
+EOF
+
+# ipsec.conf
+ipsec_file=~/ipsec.conf
+cat <<EOF > $ipsec_file
+conn %default
+         # Authentication Method : Pre-Shared Key
+         leftauth=psk
+         rightauth=psk
+         ike=aes256-sha1-modp1024!
+         ikelifetime=28800s
+         # Phase 1 Negotiation Mode : main
+         aggressive=no
+         esp=aes256-sha1!
+         lifetime=3600s
+         keylife=3600s
+         type=tunnel
+         dpddelay=10s
+         dpdtimeout=30s
+         keyexchange=ikev2
+         rekey=yes
+         reauth=no
+         dpdaction=restart
+         closeaction=restart
+         leftsubnet=0.0.0.0/0,::/0
+         rightsubnet=0.0.0.0/0,::/0
+         leftupdown=/etc/strongswan.d/ipsec-vti.sh
+         installpolicy=yes
+         compress=no
+         mobike=no
+conn $site1_vnet_name-gw
+         # Site2 Gateway Private IP Address :
+         left=$site2_gw_private_ip
+         # Site2 Gateway Public IP Address :
+         leftid=$site2_gw_pubip
+         # Site1 Gateway Public IP address :
+         right=$site1_gw_pubip
+         rightid=$site1_gw_pubip
+         auto=start
+         # unique number per IPSEC Tunnel eg. 100, 101 etc
+         mark=101
+EOF
+
+
+# ipsec-vti.sh
+ipsec_vti_file=~/ipsec-vti.sh
+tee -a $ipsec_vti_file > /dev/null <<'EOT'
+#!/bin/bash
+
+#
+# /etc/strongswan.d/ipsec-vti.sh
+#
+
+IP=$(which ip)
+IPTABLES=$(which iptables)
+PLUTO_MARK_OUT_ARR=(${PLUTO_MARK_OUT//// })
+PLUTO_MARK_IN_ARR=(${PLUTO_MARK_IN//// })
+case "$PLUTO_CONNECTION" in
+  $site1_vnet_name-gw)
+    VTI_INTERFACE=vti0
+    VTI_LOCALADDR=$site2_gw_vti0/32
+    VTI_REMOTEADDR=$site1_gw_vti0/32
+    ;;
+esac
+case "${PLUTO_VERB}" in
+    up-client)
+        $IP link add ${VTI_INTERFACE} type vti local ${PLUTO_ME} remote ${PLUTO_PEER} okey ${PLUTO_MARK_OUT_ARR[0]} ikey ${PLUTO_MARK_IN_ARR[0]}
+        sysctl -w net.ipv4.conf.${VTI_INTERFACE}.disable_policy=1
+        sysctl -w net.ipv4.conf.${VTI_INTERFACE}.rp_filter=2 || sysctl -w net.ipv4.conf.${VTI_INTERFACE}.rp_filter=0
+        $IP addr add ${VTI_LOCALADDR} remote ${VTI_REMOTEADDR} dev ${VTI_INTERFACE}
+        $IP link set ${VTI_INTERFACE} up mtu 1350
+        $IPTABLES -t mangle -I FORWARD -o ${VTI_INTERFACE} -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+        $IPTABLES -t mangle -I INPUT -p esp -s ${PLUTO_PEER} -d ${PLUTO_ME} -j MARK --set-xmark ${PLUTO_MARK_IN}
+        $IP route flush table 220
+        ;;
+    down-client)
+        $IP link del ${VTI_INTERFACE}
+        $IPTABLES -t mangle -D FORWARD -o ${VTI_INTERFACE} -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+        $IPTABLES -t mangle -D INPUT -p esp -s ${PLUTO_PEER} -d ${PLUTO_ME} -j MARK --set-xmark ${PLUTO_MARK_IN}
+        ;;
+esac
+
+# Enable IPv4 forwarding
+sysctl -w net.ipv4.ip_forward=1
+sysctl -w net.ipv4.conf.eth0.disable_xfrm=1
+sysctl -w net.ipv4.conf.eth0.disable_policy=1
+EOT
+
+sed -i "/\$site2_gw_vti0/ s//$site2_gw_vti0/" $ipsec_vti_file
+sed -i "/\$site1_gw_vti0/ s//$site1_gw_vti0/" $ipsec_vti_file
+sed -i "/\$site1_vnet_name-gw/ s//$site1_vnet_name-gw/" $ipsec_vti_file
+
+# frr.conf
+frr_conf_file=~/frr.conf
+cat <<EOF > $frr_conf_file
+frr version 10.2
+frr defaults traditional
+hostname $site2_vnet_name-gw
+log syslog informational
+no ipv6 forwarding
+service integrated-vtysh-config
+!
+ip route $default_address1 $site2_gw_nic_default_gw
+ip route $default_address2 $site2_gw_nic_default_gw
+ip route $site2_vnet_address $site2_gw_nic_default_gw
+ip route $site1_gw_vti0/32 $site2_gw_nic_default_gw
+!
+router bgp $site2_gw_asn
+ bgp router-id $site2_gw_private_ip
+ no bgp ebgp-requires-policy
+ neighbor $site1_gw_vti0 remote-as $site1_gw_asn
+ neighbor $site1_gw_vti0 description $site1_vnet_name-gw
+ neighbor $site1_gw_vti0 ebgp-multihop 2
+ !
+ address-family ipv4 unicast
+  network $site2_vnet_address
+  neighbor $hub1_gw_bgp_ip0 soft-reconfiguration inbound
+ exit-address-family
+exit
+!
+EOF
+
+##### copy files to onprem gw
+echo -e "\e[1;36mCopying and applying S2S/BGP VPN Config files to $site2_vnet_name-gw gateway VM...\e[0m"
+scp -o StrictHostKeyChecking=no $psk_file $ipsec_file $ipsec_vti_file $frr_conf_file $site2_gw_pubip:/home/$admin_username
+scp -o StrictHostKeyChecking=no ~/.ssh/* $site2_gw_pubip:/home/$admin_username/.ssh/
+# This is needed for clients to connect to internet through onprem gw
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo mv /home/$admin_username/frr.conf /etc/frr/frr.conf && sudo mv /home/$admin_username/ipsec.* /etc/ && sudo mv /home/$admin_username/ipsec-vti.sh /etc/strongswan.d/ && chmod +x /etc/strongswan.d/ipsec-vti.sh && sudo service frr restart && sudo ipsec restart"
+
+# clean up config files
+rm $psk_file $ipsec_file $ipsec_vti_file $frr_conf_file
+
+#############
+# Diagnosis #
+#############
+echo -e "\e[1;36mChecking the status of S2S VPN between $site2_vnet_name-gw and $site1_vnet_name-gw VPN Gateways...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo ipsec status"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ping -c 3 $site2_gw_vti0"
+echo -e "\e[1;36mChecking the status of S2S VPN between $site1_vnet_name-gw and $site2_vnet_name-gw VPN Gateways...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo ipsec status"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "ping -c 3 $site1_gw_vti0"
+
+echo -e "\e[1;36mChecking BGP routing on $site1_vnet_name-gw gateway vm...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo vtysh -c 'show bgp summary'"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo vtysh -c 'show bgp all'"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo vtysh -c 'show ip bgp'"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo vtysh -c 'show ip route'"
+
+
+echo -e "\e[1;36mChecking BGP routing on $site2_vnet_name-gw gateway vm...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo ipsec status"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo vtysh -c 'show bgp summary'"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo vtysh -c 'show bgp all'"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo vtysh -c 'show ip bgp'"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo vtysh -c 'show ip route'"
+
+#cleanup
+# az group delete -g $rg -y -f
