@@ -358,7 +358,7 @@ router bgp $site2_gw_asn
  !
  address-family ipv4 unicast
   network $site2_vnet_address
-  neighbor $hub1_gw_bgp_ip0 soft-reconfiguration inbound
+  neighbor $site1_gw_vti0 soft-reconfiguration inbound
  exit-address-family
 exit
 !
