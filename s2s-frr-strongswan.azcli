@@ -200,8 +200,6 @@ log syslog informational
 no ipv6 forwarding
 service integrated-vtysh-config
 !
-ip route $default_address1 $site1_gw_nic_default_gw
-ip route $default_address2 $site1_gw_nic_default_gw
 ip route $site1_vnet_address $site1_gw_nic_default_gw
 ip route $site2_gw_vti0/32 $site1_gw_nic_default_gw
 !
@@ -344,8 +342,6 @@ log syslog informational
 no ipv6 forwarding
 service integrated-vtysh-config
 !
-ip route $default_address1 $site2_gw_nic_default_gw
-ip route $default_address2 $site2_gw_nic_default_gw
 ip route $site2_vnet_address $site2_gw_nic_default_gw
 ip route $site1_gw_vti0/32 $site2_gw_nic_default_gw
 !
