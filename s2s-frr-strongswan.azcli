@@ -200,6 +200,7 @@ log syslog informational
 no ipv6 forwarding
 service integrated-vtysh-config
 !
+ip route 1.1.1.1/32 $site1_gw_nic_default_gw
 ip route $site1_vnet_address $site1_gw_nic_default_gw
 ip route $site2_gw_vti0/32 $site1_gw_nic_default_gw
 !
@@ -211,6 +212,7 @@ router bgp $site1_gw_asn
  neighbor $site2_gw_vti0 ebgp-multihop 2
  !
  address-family ipv4 unicast
+  network 1.1.1.1/32
   network $site1_vnet_address
   neighbor $site2_gw_vti0 soft-reconfiguration inbound
  exit-address-family
@@ -342,6 +344,7 @@ log syslog informational
 no ipv6 forwarding
 service integrated-vtysh-config
 !
+ip route 2.2.2.2/32 $site2_gw_nic_default_gw
 ip route $site2_vnet_address $site2_gw_nic_default_gw
 ip route $site1_gw_vti0/32 $site2_gw_nic_default_gw
 !
@@ -353,6 +356,7 @@ router bgp $site2_gw_asn
  neighbor $site1_gw_vti0 ebgp-multihop 2
  !
  address-family ipv4 unicast
+  network 2.2.2.2/32
   network $site2_vnet_address
   neighbor $site1_gw_vti0 soft-reconfiguration inbound
  exit-address-family
