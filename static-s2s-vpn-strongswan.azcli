@@ -1,0 +1,172 @@
+rg=s2s
+location=centralindia
+
+site1_vnet_name=site1
+site1_vnet_address=172.21.0.0/16
+site1_gw_subnet_name=gw
+site1_gw_subnet_address=172.21.0.0/24
+site1_vm_subnet_name=vm
+site1_vm_subnet_address=172.21.1.0/24
+
+site2_vnet_name=site2
+site2_vnet_address=172.22.0.0/16
+site2_gw_subnet_name=gw
+site2_gw_subnet_address=172.22.0.0/24
+site2_vm_subnet_name=vm
+site2_vm_subnet_address=172.22.1.0/24
+
+admin_username=$(whoami)
+myip=$(curl -s4 https://ifconfig.co/)
+
+psk=secret12345
+vm_size=Standard_B2ats_v2
+vm_image=$(az vm image list -l $location -p Canonical -s 22_04-lts --all --query "[?offer=='0001-com-ubuntu-server-jammy'].urn" -o tsv | sort -u | tail -n 1) && echo $vm_image
+
+cloudinit_file=~/cloudinit.txt
+cat <<EOF > $cloudinit_file
+#cloud-config
+runcmd:
+  - sudo apt update && sudo apt install -y strongswan tcptraceroute net-tools
+  - cp /etc/ipsec.conf /etc/ipsec.conf.bak
+  - cp /etc/ipsec.secrets /etc/ipsec.secrets.bak
+  - echo "net.ipv4.conf.all.forwarding=1" | sudo tee -a /etc/sysctl.conf
+  - echo "net.ipv4.conf.default.forwarding=1" | sudo tee -a /etc/sysctl.conf
+  - sudo sysctl -p
+EOF
+
+# Resource Groups
+echo -e "\e[1;36mCreating $rg Resource Group...\e[0m"
+az group create -n $rg -l $location -o none
+
+# site1 vnet
+echo -e "\e[1;36mCreating $site1_vnet_name VNet...\e[0m"
+az network vnet create -g $rg -n $site1_vnet_name -l $location --address-prefixes $site1_vnet_address --subnet-name $site1_vm_subnet_name --subnet-prefixes $site1_vm_subnet_address -o none
+az network vnet subnet create -g $rg -n $site1_gw_subnet_name --address-prefixes $site1_gw_subnet_address --vnet-name $site1_vnet_name -o none
+
+# site2 vnet
+echo -e "\e[1;36mCreating $site2_vnet_name VNet...\e[0m"
+az network vnet create -g $rg -n $site2_vnet_name -l $location --address-prefixes $site2_vnet_address --subnet-name $site2_vm_subnet_name --subnet-prefixes $site2_vm_subnet_address -o none
+az network vnet subnet create -g $rg -n $site2_gw_subnet_name --address-prefixes $site2_gw_subnet_address --vnet-name $site2_vnet_name -o none
+
+# site1 gw vm
+echo -e "\e[1;36mDeploying $site1_vnet_name-gw VM...\e[0m"
+az network public-ip create -g $rg -n $site1_vnet_name-gw -l $location --allocation-method Static --sku Basic -o none
+az network nic create -g $rg  -n $site1_vnet_name-gw -l $location --vnet-name $site1_vnet_name --subnet $site1_gw_subnet_name --ip-forwarding true --public-ip-address $site1_vnet_name-gw -o none
+az vm create -g $rg -n $site1_vnet_name-gw -l $location --image $vm_image --nics $site1_vnet_name-gw --os-disk-name $site1_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file -o none
+# site1 gw details
+site1_gw_pubip=$(az network public-ip show -g $rg -n $site1_vnet_name-gw --query ipAddress -o tsv) && echo $site1_vnet_name-gw public ip: $site1_gw_pubip
+site1_gw_private_ip=$(az network nic show -g $rg -n $site1_vnet_name-gw --query ipConfigurations[].privateIPAddress -o tsv)  && echo $site1_vnet_name-gw private ip: $site1_gw_private_ip
+
+# site2 gw vm
+echo -e "\e[1;36mDeploying $site2_vnet_name-gw VM...\e[0m"
+az network public-ip create -g $rg -n $site2_vnet_name-gw -l $location --allocation-method Static --sku Basic -o none
+az network nic create -g $rg  -n $site2_vnet_name-gw -l $location --vnet-name $site2_vnet_name --subnet $site2_gw_subnet_name --ip-forwarding true --public-ip-address $site2_vnet_name-gw -o none
+az vm create -g $rg -n $site2_vnet_name-gw -l $location --image $vm_image --nics $site2_vnet_name-gw --os-disk-name $site2_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file -o none
+# site2 gw details
+site2_gw_pubip=$(az network public-ip show -g $rg -n $site2_vnet_name-gw --query ipAddress -o tsv) && echo $site2_vnet_name-gw public ip: $site2_gw_pubip
+site2_gw_private_ip=$(az network nic show -g $rg -n $site2_vnet_name-gw --query ipConfigurations[].privateIPAddress -o tsv)  && echo $site2_vnet_name-gw private ip: $site2_gw_private_ip
+
+#######################
+# site1 VPN Config  #
+#######################
+echo -e "\e[1;36mCreating S2S/BGP VPN Config files for $site1_vnet_name Gateway VM...\e[0m"
+# ipsec.secrets
+psk_file=~/ipsec.secrets
+cat <<EOF > $psk_file
+$site1_gw_pubip $site2_gw_pubip : PSK $psk
+EOF
+
+ipsec_file=~/ipsec.conf
+cat <<EOF > $ipsec_file
+conn $site2_vnet_name-gw
+         dpdaction=restart
+         ike=aes256-sha1-modp1024
+         esp=aes256-sha1
+         keyexchange=ikev2
+         ikelifetime=28800s
+         keylife=3600s
+         authby=secret
+         # site1 private ip address
+         left=$site1_gw_private_ip
+         # site1 Public ip address
+         leftid=$site1_gw_pubip
+         # site1 Address Space2
+         leftsubnet=$site1_vnet_address
+         # site2 Gateway Public IP
+         right=$site2_gw_pubip
+         # site2 Gateway Public IP
+         rightid=$site2_gw_pubip
+         # Azure Vnet Address Spaces and onther on-premises network address space (comma separated, if more that one i.e hub and spoke topology)
+         rightsubnet=$site2_vnet_address
+         auto=start
+EOF
+
+##### copy files to onprem gw
+echo -e "\e[1;36mCopying and applying S2S VPN Config files to $site1_vnet_name-gw Gateway VM...\e[0m"
+scp -o StrictHostKeyChecking=no $psk_file $ipsec_file $site1_gw_pubip:/home/$admin_username
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo mv /home/$admin_username/ipsec.* /etc/ && sudo ipsec restart"
+
+# clean up config files
+rm $psk_file $ipsec_file $cloudinit_file
+
+
+#######################
+# site2 VPN Config  #
+#######################
+echo -e "\e[1;36mCreating S2S/BGP VPN Config files for $site2_vnet_name Gateway VM...\e[0m"
+# ipsec.secrets
+psk_file=~/ipsec.secrets
+cat <<EOF > $psk_file
+$site2_gw_pubip $site1_gw_pubip : PSK $psk
+EOF
+
+ipsec_file=~/ipsec.conf
+cat <<EOF > $ipsec_file
+conn $site1_vnet_name-gw
+         dpdaction=restart
+         ike=aes256-sha1-modp1024
+         esp=aes256-sha1
+         keyexchange=ikev2
+         ikelifetime=28800s
+         keylife=3600s
+         authby=secret
+         # site2 private ip address
+         left=$site2_gw_private_ip
+         # site2 Public ip address
+         leftid=$site2_gw_pubip
+         # site2 Address Space2
+         leftsubnet=$site2_vnet_address
+         # site1 Gateway Public IP
+         right=$site1_gw_pubip
+         # site1 Gateway Public IP
+         rightid=$site1_gw_pubip
+         # Azure Vnet Address Spaces and onther on-premises network address space (comma separated, if more that one i.e hub and spoke topology)
+         rightsubnet=$site1_vnet_address
+         auto=start
+EOF
+
+##### copy files to onprem gw
+echo -e "\e[1;36mCopying and applying S2S VPN Config files to $site2_vnet_name-gw Gateway VM...\e[0m"
+scp -o StrictHostKeyChecking=no $psk_file $ipsec_file $site2_gw_pubip:/home/$admin_username
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo mv /home/$admin_username/ipsec.* /etc/ && sudo ipsec restart"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo ipsec status"
+# site1
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo ipsec restart"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo ipsec status"
+
+#############
+# Diagnosis #
+#############
+echo -e "\e[1;36mChecking connectivity from $site1_vnet_name-gw VM to $site2_vnet_name-gw VM...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ping $site2_gw_private_ip -c 3"
+
+echo -e "\e[1;36mChecking connectivity from $site2_vnet_name-gw VM to $site1_vnet_name-gw VM...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ping $site1_gw_private_ip -c 3"
+
+# clean up config files
+rm $psk_file $ipsec_file
+
+#cleanup
+# az group delete -g $rg -y --no-wait
