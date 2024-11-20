@@ -99,6 +99,8 @@ conn $site2_vnet_name-gw
          # Azure Vnet Address Spaces and onther on-premises network address space (comma separated, if more that one i.e hub and spoke topology)
          rightsubnet=$site2_vnet_address
          auto=start
+         # unique number per IPSEC Tunnel eg. 100, 101 etc
+         mark=101
 EOF
 
 ##### copy files to onprem gw
@@ -144,6 +146,8 @@ conn $site1_vnet_name-gw
          # Azure Vnet Address Spaces and onther on-premises network address space (comma separated, if more that one i.e hub and spoke topology)
          rightsubnet=$site1_vnet_address
          auto=start
+         # unique number per IPSEC Tunnel eg. 100, 101 etc
+         mark=101
 EOF
 
 ##### copy files to onprem gw
