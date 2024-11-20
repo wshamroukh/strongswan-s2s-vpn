@@ -87,7 +87,7 @@ az vm create -g $rg -n $site2_vnet_name-gw -l $location --image $vm_image --nics
 # site2 gw details
 site2_gw_pubip=$(az network public-ip show -g $rg -n $site2_vnet_name-gw --query ipAddress -o tsv) && echo $site2_vnet_name-gw public ip: $site2_gw_pubip
 site2_gw_private_ip=$(az network nic show -g $rg -n $site2_vnet_name-gw --query ipConfigurations[].privateIPAddress -o tsv)  && echo $site2_vnet_name-gw private ip: $site2_gw_private_ip
-site2_gw_nic_default_gw=$(first_ip $site2_gw_subnet_address) echo $site2_vnet_name-gw default gateway ip: $site2_gw_nic_default_gw
+site2_gw_nic_default_gw=$(first_ip $site2_gw_subnet_address) && echo $site2_vnet_name-gw default gateway ip: $site2_gw_nic_default_gw
 
 #######################
 # site1 VPN Config  #
