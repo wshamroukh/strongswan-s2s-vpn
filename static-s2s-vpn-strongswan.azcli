@@ -2,18 +2,18 @@ rg=s2s
 location=centralindia
 
 site1_vnet_name=site1
-site1_vnet_address=172.21.0.0/16
+site1_vnet_address=10.1.0.0/16
 site1_gw_subnet_name=gw
-site1_gw_subnet_address=172.21.0.0/24
+site1_gw_subnet_address=10.1.0.0/24
 site1_vm_subnet_name=vm
-site1_vm_subnet_address=172.21.1.0/24
+site1_vm_subnet_address=10.1.1.0/24
 
 site2_vnet_name=site2
-site2_vnet_address=172.22.0.0/16
+site2_vnet_address=10.2.0.0/16
 site2_gw_subnet_name=gw
-site2_gw_subnet_address=172.22.0.0/24
+site2_gw_subnet_address=10.2.0.0/24
 site2_vm_subnet_name=vm
-site2_vm_subnet_address=172.22.1.0/24
+site2_vm_subnet_address=10.2.1.0/24
 
 admin_username=$(whoami)
 myip=$(curl -s4 https://ifconfig.co/)
