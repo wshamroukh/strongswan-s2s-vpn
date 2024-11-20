@@ -400,4 +400,4 @@ ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo vtysh 
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo vtysh -c 'show ip route'"
 
 #cleanup
-# az group delete -g $rg -y -f
+# az group delete -g $rg -y --no-wait
