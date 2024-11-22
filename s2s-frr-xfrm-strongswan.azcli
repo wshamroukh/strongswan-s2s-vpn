@@ -89,6 +89,9 @@ site2_gw_pubip=$(az network public-ip show -g $rg -n $site2_vnet_name-gw --query
 site2_gw_private_ip=$(az network nic show -g $rg -n $site2_vnet_name-gw --query ipConfigurations[].privateIPAddress -o tsv)  && echo $site2_vnet_name-gw private ip: $site2_gw_private_ip
 site2_gw_nic_default_gw=$(first_ip $site2_gw_subnet_address) && echo $site2_vnet_name-gw default gateway ip: $site2_gw_nic_default_gw
 
+# clear up the cloudinit file
+rm $cloudinit_file
+
 #######################
 # site1 VPN Config  #
 #######################
@@ -192,8 +195,7 @@ ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo ipsec 
 
 # clean up config files
 rm $swanctl_file $frr_conf_file
-# clear up the cloudinit file
-rm $cloudinit_file
+
 
 #######################
 # site2 VPN Config  #
