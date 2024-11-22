@@ -1,4 +1,4 @@
-rg=s2s-static-vpn
+rg=s2s-vpn-static
 location=centralindia
 
 site1_vnet_name=site1
@@ -15,6 +15,13 @@ site2_gw_subnet_address=10.2.0.0/24
 site2_vm_subnet_name=vm
 site2_vm_subnet_address=10.2.1.0/24
 
+site3_vnet_name=site3
+site3_vnet_address=10.3.0.0/16
+site3_gw_subnet_name=gw
+site3_gw_subnet_address=10.3.0.0/24
+site3_vm_subnet_name=vm
+site3_vm_subnet_address=10.3.1.0/24
+
 admin_username=$(whoami)
 myip=$(curl -s4 https://ifconfig.co/)
 
@@ -26,11 +33,12 @@ cloudinit_file=~/cloudinit.txt
 cat <<EOF > $cloudinit_file
 #cloud-config
 runcmd:
-  - sudo apt update && sudo apt install -y strongswan tcptraceroute net-tools
+  - sudo apt update && sudo apt install -y strongswan strongswan-pki libcharon-extra-plugins
   - cp /etc/ipsec.conf /etc/ipsec.conf.bak
   - cp /etc/ipsec.secrets /etc/ipsec.secrets.bak
-  - echo "net.ipv4.conf.all.forwarding=1" | sudo tee -a /etc/sysctl.conf
-  - echo "net.ipv4.conf.default.forwarding=1" | sudo tee -a /etc/sysctl.conf
+  - echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
+  - echo "net.ipv4.conf.all.accept_redirects=0" | sudo tee -a /etc/sysctl.conf
+  - echo "net.ipv4.conf.all.send_redirects=0" | sudo tee -a /etc/sysctl.conf
   - sudo sysctl -p
 EOF
 
@@ -47,6 +55,11 @@ az network vnet subnet create -g $rg -n $site1_gw_subnet_name --address-prefixes
 echo -e "\e[1;36mCreating $site2_vnet_name VNet...\e[0m"
 az network vnet create -g $rg -n $site2_vnet_name -l $location --address-prefixes $site2_vnet_address --subnet-name $site2_vm_subnet_name --subnet-prefixes $site2_vm_subnet_address -o none
 az network vnet subnet create -g $rg -n $site2_gw_subnet_name --address-prefixes $site2_gw_subnet_address --vnet-name $site2_vnet_name -o none
+
+# site3 vnet
+echo -e "\e[1;36mCreating $site3_vnet_name VNet...\e[0m"
+az network vnet create -g $rg -n $site3_vnet_name -l $location --address-prefixes $site3_vnet_address --subnet-name $site3_vm_subnet_name --subnet-prefixes $site3_vm_subnet_address -o none
+az network vnet subnet create -g $rg -n $site3_gw_subnet_name --address-prefixes $site3_gw_subnet_address --vnet-name $site3_vnet_name -o none
 
 # site1 gw vm
 echo -e "\e[1;36mDeploying $site1_vnet_name-gw VM...\e[0m"
@@ -66,6 +79,15 @@ az vm create -g $rg -n $site2_vnet_name-gw -l $location --image $vm_image --nics
 site2_gw_pubip=$(az network public-ip show -g $rg -n $site2_vnet_name-gw --query ipAddress -o tsv) && echo $site2_vnet_name-gw public ip: $site2_gw_pubip
 site2_gw_private_ip=$(az network nic show -g $rg -n $site2_vnet_name-gw --query ipConfigurations[].privateIPAddress -o tsv)  && echo $site2_vnet_name-gw private ip: $site2_gw_private_ip
 
+# site3 gw vm
+echo -e "\e[1;36mDeploying $site3_vnet_name-gw VM...\e[0m"
+az network public-ip create -g $rg -n $site3_vnet_name-gw -l $location --allocation-method Static --sku Basic -o none
+az network nic create -g $rg  -n $site3_vnet_name-gw -l $location --vnet-name $site3_vnet_name --subnet $site3_gw_subnet_name --ip-forwarding true --public-ip-address $site3_vnet_name-gw -o none
+az vm create -g $rg -n $site3_vnet_name-gw -l $location --image $vm_image --nics $site3_vnet_name-gw --os-disk-name $site3_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file -o none
+# site3 gw details
+site3_gw_pubip=$(az network public-ip show -g $rg -n $site3_vnet_name-gw --query ipAddress -o tsv) && echo $site3_vnet_name-gw public ip: $site3_gw_pubip
+site3_gw_private_ip=$(az network nic show -g $rg -n $site3_vnet_name-gw --query ipConfigurations[].privateIPAddress -o tsv)  && echo $site3_vnet_name-gw private ip: $site3_gw_private_ip
+
 #######################
 # site1 VPN Config  #
 #######################
@@ -74,40 +96,41 @@ echo -e "\e[1;36mCreating S2S/BGP VPN Config files for $site1_vnet_name Gateway 
 psk_file=~/ipsec.secrets
 cat <<EOF > $psk_file
 $site1_gw_pubip $site2_gw_pubip : PSK $psk
+$site1_gw_pubip $site3_gw_pubip : PSK $psk
 EOF
 
 ipsec_file=~/ipsec.conf
 cat <<EOF > $ipsec_file
+config setup
+    charondebug="all"
+
 conn $site2_vnet_name-gw
-         dpdaction=restart
-         ike=aes256-sha1-modp1024
-         esp=aes256-sha1
-         keyexchange=ikev2
-         ikelifetime=28800s
-         keylife=3600s
-         authby=secret
-         # site1 private ip address
-         left=$site1_gw_private_ip
-         # site1 Public ip address
-         leftid=$site1_gw_pubip
-         # site1 Address Space2
-         leftsubnet=$site1_vnet_address
-         # site2 Gateway Public IP
-         right=$site2_gw_pubip
-         # site2 Gateway Public IP
-         rightid=$site2_gw_pubip
-         # Azure Vnet Address Spaces and onther on-premises network address space (comma separated, if more that one i.e hub and spoke topology)
-         rightsubnet=$site2_vnet_address
-         auto=start
-         # unique number per IPSEC Tunnel eg. 100, 101 etc
-         mark=101
+    authby=secret
+    auto=start
+    left=%defaultroute
+    leftid=$site1_gw_pubip
+    leftsubnet=$site1_vnet_address
+    right=$site2_gw_pubip
+    rightsubnet=$site2_vnet_address
+    type=tunnel
+    keyexchange=ikev2
+conn $site3_vnet_name-gw
+    authby=secret
+    auto=start
+    left=%defaultroute
+    leftid=$site1_gw_pubip
+    leftsubnet=$site1_vnet_address
+    right=$site3_gw_pubip
+    rightsubnet=$site3_vnet_address
+    type=tunnel
+    keyexchange=ikev2
 EOF
 
 ##### copy files to onprem gw
 echo -e "\e[1;36mCopying and applying S2S VPN Config files to $site1_vnet_name-gw Gateway VM...\e[0m"
 scp -o StrictHostKeyChecking=no $psk_file $ipsec_file $site1_gw_pubip:/home/$admin_username
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo mv /home/$admin_username/ipsec.* /etc/ && sudo ipsec restart"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo mv /home/$admin_username/ipsec.* /etc/"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo systemctl restart ipsec && sudo systemctl enable ipsec"
 
 # clean up config files
 rm $psk_file $ipsec_file $cloudinit_file
@@ -121,56 +144,119 @@ echo -e "\e[1;36mCreating S2S/BGP VPN Config files for $site2_vnet_name Gateway 
 psk_file=~/ipsec.secrets
 cat <<EOF > $psk_file
 $site2_gw_pubip $site1_gw_pubip : PSK $psk
+$site2_gw_pubip $site3_gw_pubip : PSK $psk
 EOF
 
 ipsec_file=~/ipsec.conf
 cat <<EOF > $ipsec_file
+config setup
+    charondebug="all"
+
 conn $site1_vnet_name-gw
-         dpdaction=restart
-         ike=aes256-sha1-modp1024
-         esp=aes256-sha1
-         keyexchange=ikev2
-         ikelifetime=28800s
-         keylife=3600s
-         authby=secret
-         # site2 private ip address
-         left=$site2_gw_private_ip
-         # site2 Public ip address
-         leftid=$site2_gw_pubip
-         # site2 Address Space2
-         leftsubnet=$site2_vnet_address
-         # site1 Gateway Public IP
-         right=$site1_gw_pubip
-         # site1 Gateway Public IP
-         rightid=$site1_gw_pubip
-         # Azure Vnet Address Spaces and onther on-premises network address space (comma separated, if more that one i.e hub and spoke topology)
-         rightsubnet=$site1_vnet_address
-         auto=start
-         # unique number per IPSEC Tunnel eg. 100, 101 etc
-         mark=101
+    authby=secret
+    auto=start
+    left=%defaultroute
+    leftid=$site2_gw_pubip
+    leftsubnet=$site2_vnet_address
+    right=$site1_gw_pubip
+    rightsubnet=$site1_vnet_address
+    type=tunnel
+    keyexchange=ikev2
+conn $site3_vnet_name-gw
+    authby=secret
+    auto=start
+    left=%defaultroute
+    leftid=$site2_gw_pubip
+    leftsubnet=$site2_vnet_address
+    right=$site3_gw_pubip
+    rightsubnet=$site3_vnet_address
+    type=tunnel
+    keyexchange=ikev2
 EOF
 
 ##### copy files to onprem gw
 echo -e "\e[1;36mCopying and applying S2S VPN Config files to $site2_vnet_name-gw Gateway VM...\e[0m"
 scp -o StrictHostKeyChecking=no $psk_file $ipsec_file $site2_gw_pubip:/home/$admin_username
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo mv /home/$admin_username/ipsec.* /etc/ && sudo ipsec restart"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo ipsec status"
-# site1
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo ipsec restart"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo ipsec status"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo mv /home/$admin_username/ipsec.* /etc/"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo systemctl restart ipsec && sudo systemctl enable ipsec"
+
+# clean up config files
+rm $psk_file $ipsec_file
+
+#######################
+# site3 VPN Config  #
+#######################
+echo -e "\e[1;36mCreating S2S/BGP VPN Config files for $site3_vnet_name Gateway VM...\e[0m"
+# ipsec.secrets
+psk_file=~/ipsec.secrets
+cat <<EOF > $psk_file
+$site3_gw_pubip $site1_gw_pubip : PSK $psk
+$site3_gw_pubip $site2_gw_pubip : PSK $psk
+EOF
+
+ipsec_file=~/ipsec.conf
+cat <<EOF > $ipsec_file
+config setup
+    charondebug="all"
+
+conn $site1_vnet_name-gw
+    authby=secret
+    auto=start
+    left=%defaultroute
+    leftid=$site3_gw_pubip
+    leftsubnet=$site3_vnet_address
+    right=$site1_gw_pubip
+    rightsubnet=$site1_vnet_address
+    type=tunnel
+    keyexchange=ikev2
+conn $site2_vnet_name-gw
+    authby=secret
+    auto=start
+    left=%defaultroute
+    leftid=$site3_gw_pubip
+    leftsubnet=$site3_vnet_address
+    right=$site2_gw_pubip
+    rightsubnet=$site2_vnet_address
+    type=tunnel
+    keyexchange=ikev2
+EOF
+
+##### copy files to onprem gw
+echo -e "\e[1;36mCopying and applying S2S VPN Config files to $site3_vnet_name-gw Gateway VM...\e[0m"
+scp -o StrictHostKeyChecking=no $psk_file $ipsec_file $site3_gw_pubip:/home/$admin_username
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo mv /home/$admin_username/ipsec.* /etc/"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo systemctl restart ipsec && sudo systemctl enable ipsec"
+
+# clean up config files
+rm $psk_file $ipsec_file
 
 #############
 # Diagnosis #
 #############
+echo -e "\e[1;36mChecking IPSec status on $site1_vnet_name-gw...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo ipsec status"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo ipsec statusall"
+echo -e "\e[1;36mChecking IPSec status on $site2_vnet_name-gw...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo ipsec status"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo ipsec statusall"
+echo -e "\e[1;36mChecking IPSec status on $site3_vnet_name-gw...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo ipsec status"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo ipsec statusall"
+
 echo -e "\e[1;36mChecking connectivity from $site1_vnet_name-gw VM to $site2_vnet_name-gw VM...\e[0m"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ping $site2_gw_private_ip -c 3"
+echo -e "\e[1;36mChecking connectivity from $site1_vnet_name-gw VM to $site3_vnet_name-gw VM...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ping $site3_gw_private_ip -c 3"
 
 echo -e "\e[1;36mChecking connectivity from $site2_vnet_name-gw VM to $site1_vnet_name-gw VM...\e[0m"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ping $site1_gw_private_ip -c 3"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "ping $site1_gw_private_ip -c 3"
+echo -e "\e[1;36mChecking connectivity from $site2_vnet_name-gw VM to $site3_vnet_name-gw VM...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "ping $site3_gw_private_ip -c 3"
 
-# clean up config files
-rm $psk_file $ipsec_file
+echo -e "\e[1;36mChecking connectivity from $site3_vnet_name-gw VM to $site1_vnet_name-gw VM...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "ping $site1_gw_private_ip -c 3"
+echo -e "\e[1;36mChecking connectivity from $site2_vnet_name-gw VM to $site2_vnet_name-gw VM...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "ping $site2_gw_private_ip -c 3"
 
 #cleanup
 # az group delete -g $rg -y --no-wait
