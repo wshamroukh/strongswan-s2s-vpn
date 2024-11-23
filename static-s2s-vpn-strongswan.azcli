@@ -36,9 +36,9 @@ runcmd:
   - sudo apt update && sudo apt install -y strongswan strongswan-pki libcharon-extra-plugins inetutils-traceroute
   - cp /etc/ipsec.conf /etc/ipsec.conf.bak
   - cp /etc/ipsec.secrets /etc/ipsec.secrets.bak
-  - echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
-  - echo "net.ipv4.conf.all.accept_redirects=0" | sudo tee -a /etc/sysctl.conf
-  - echo "net.ipv4.conf.all.send_redirects=0" | sudo tee -a /etc/sysctl.conf
+  - echo "net.ipv4.ip_forward=1" | sudo tee /etc/sysctl.conf
+  - echo "net.ipv4.conf.all.accept_redirects=0" | sudo tee /etc/sysctl.conf
+  - echo "net.ipv4.conf.all.send_redirects=0" | sudo tee /etc/sysctl.conf
   - sudo sysctl -p
 EOF
 
