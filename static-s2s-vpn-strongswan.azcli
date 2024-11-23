@@ -33,7 +33,7 @@ cloudinit_file=~/cloudinit.txt
 cat <<EOF > $cloudinit_file
 #cloud-config
 runcmd:
-  - sudo apt update && sudo apt install -y strongswan strongswan-pki libcharon-extra-plugins
+  - sudo apt update && sudo apt install -y strongswan strongswan-pki libcharon-extra-plugins inetutils-traceroute
   - cp /etc/ipsec.conf /etc/ipsec.conf.bak
   - cp /etc/ipsec.secrets /etc/ipsec.secrets.bak
   - echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
