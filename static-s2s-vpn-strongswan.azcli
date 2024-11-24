@@ -61,32 +61,71 @@ echo -e "\e[1;36mCreating $site3_vnet_name VNet...\e[0m"
 az network vnet create -g $rg -n $site3_vnet_name -l $location --address-prefixes $site3_vnet_address --subnet-name $site3_vm_subnet_name --subnet-prefixes $site3_vm_subnet_address -o none
 az network vnet subnet create -g $rg -n $site3_gw_subnet_name --address-prefixes $site3_gw_subnet_address --vnet-name $site3_vnet_name -o none
 
-# site1 gw vm
+# site1 gw
 echo -e "\e[1;36mDeploying $site1_vnet_name-gw VM...\e[0m"
 az network public-ip create -g $rg -n $site1_vnet_name-gw -l $location --allocation-method Static --sku Basic -o none
 az network nic create -g $rg  -n $site1_vnet_name-gw -l $location --vnet-name $site1_vnet_name --subnet $site1_gw_subnet_name --ip-forwarding true --public-ip-address $site1_vnet_name-gw -o none
-az vm create -g $rg -n $site1_vnet_name-gw -l $location --image $vm_image --nics $site1_vnet_name-gw --os-disk-name $site1_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file -o none
+az vm create -g $rg -n $site1_vnet_name-gw -l $location --image $vm_image --nics $site1_vnet_name-gw --os-disk-name $site1_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file --no-wait
 # site1 gw details
 site1_gw_pubip=$(az network public-ip show -g $rg -n $site1_vnet_name-gw --query ipAddress -o tsv) && echo $site1_vnet_name-gw public ip: $site1_gw_pubip
 site1_gw_private_ip=$(az network nic show -g $rg -n $site1_vnet_name-gw --query ipConfigurations[].privateIPAddress -o tsv)  && echo $site1_vnet_name-gw private ip: $site1_gw_private_ip
 
-# site2 gw vm
+# site2 gw
 echo -e "\e[1;36mDeploying $site2_vnet_name-gw VM...\e[0m"
 az network public-ip create -g $rg -n $site2_vnet_name-gw -l $location --allocation-method Static --sku Basic -o none
 az network nic create -g $rg  -n $site2_vnet_name-gw -l $location --vnet-name $site2_vnet_name --subnet $site2_gw_subnet_name --ip-forwarding true --public-ip-address $site2_vnet_name-gw -o none
-az vm create -g $rg -n $site2_vnet_name-gw -l $location --image $vm_image --nics $site2_vnet_name-gw --os-disk-name $site2_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file -o none
+az vm create -g $rg -n $site2_vnet_name-gw -l $location --image $vm_image --nics $site2_vnet_name-gw --os-disk-name $site2_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file --no-wait
 # site2 gw details
 site2_gw_pubip=$(az network public-ip show -g $rg -n $site2_vnet_name-gw --query ipAddress -o tsv) && echo $site2_vnet_name-gw public ip: $site2_gw_pubip
 site2_gw_private_ip=$(az network nic show -g $rg -n $site2_vnet_name-gw --query ipConfigurations[].privateIPAddress -o tsv)  && echo $site2_vnet_name-gw private ip: $site2_gw_private_ip
 
-# site3 gw vm
+# site3 gw
 echo -e "\e[1;36mDeploying $site3_vnet_name-gw VM...\e[0m"
 az network public-ip create -g $rg -n $site3_vnet_name-gw -l $location --allocation-method Static --sku Basic -o none
 az network nic create -g $rg  -n $site3_vnet_name-gw -l $location --vnet-name $site3_vnet_name --subnet $site3_gw_subnet_name --ip-forwarding true --public-ip-address $site3_vnet_name-gw -o none
-az vm create -g $rg -n $site3_vnet_name-gw -l $location --image $vm_image --nics $site3_vnet_name-gw --os-disk-name $site3_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file -o none
+az vm create -g $rg -n $site3_vnet_name-gw -l $location --image $vm_image --nics $site3_vnet_name-gw --os-disk-name $site3_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file --no-wait
 # site3 gw details
 site3_gw_pubip=$(az network public-ip show -g $rg -n $site3_vnet_name-gw --query ipAddress -o tsv) && echo $site3_vnet_name-gw public ip: $site3_gw_pubip
 site3_gw_private_ip=$(az network nic show -g $rg -n $site3_vnet_name-gw --query ipConfigurations[].privateIPAddress -o tsv)  && echo $site3_vnet_name-gw private ip: $site3_gw_private_ip
+
+# site1 vm
+echo -e "\e[1;36mDeploying $site1_vnet_name VM...\e[0m"
+az network nic create -g $rg -n $site1_vnet_name -l $location --vnet-name $site1_vnet_name --subnet $site1_vm_subnet_name -o none
+az vm create -g $rg -n $site1_vnet_name -l $location --image $vm_image --nics $site1_vnet_name --os-disk-name $site1_vnet_name --size $vm_size --admin-username $admin_username --generate-ssh-keys --no-wait
+site1_vm_ip=$(az network nic show -g $rg -n $site1_vnet_name --query ipConfigurations[0].privateIPAddress -o tsv) && echo $site1_vnet_name vm private ip: $site1_vm_ip
+
+# site2 vm
+echo -e "\e[1;36mDeploying $site2_vnet_name VM...\e[0m"
+az network nic create -g $rg -n $site2_vnet_name -l $location --vnet-name $site2_vnet_name --subnet $site2_vm_subnet_name -o none
+az vm create -g $rg -n $site2_vnet_name -l $location --image $vm_image --nics $site2_vnet_name --os-disk-name $site2_vnet_name --size $vm_size --admin-username $admin_username --generate-ssh-keys --no-wait
+site2_vm_ip=$(az network nic show -g $rg -n $site2_vnet_name --query ipConfigurations[0].privateIPAddress -o tsv) && echo $site2_vnet_name vm private ip: $site2_vm_ip
+
+# site3 vm
+echo -e "\e[1;36mDeploying $site3_vnet_name VM...\e[0m"
+az network nic create -g $rg -n $site3_vnet_name -l $location --vnet-name $site3_vnet_name --subnet $site3_vm_subnet_name -o none
+az vm create -g $rg -n $site3_vnet_name -l $location --image $vm_image --nics $site3_vnet_name --os-disk-name $site3_vnet_name --size $vm_size --admin-username $admin_username --generate-ssh-keys --no-wait
+site3_vm_ip=$(az network nic show -g $rg -n $site3_vnet_name --query ipConfigurations[0].privateIPAddress -o tsv) && echo $site3_vnet_name vm private ip: $site3_vm_ip
+
+# site1 route table
+echo -e "\e[1;36mDeploying $site1_vnet_name route table and attaching it to $site1_vm_subnet_name subnet...\e[0m"
+az network route-table create -n $site1_vnet_name -g $rg -l $location -o none
+az network route-table route create --address-prefix $site2_vnet_address -n to-$site2_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site1_vnet_name --next-hop-ip-address $site1_gw_private_ip -o none
+az network route-table route create --address-prefix $site3_vnet_address -n to-$site3_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site1_vnet_name --next-hop-ip-address $site1_gw_private_ip -o none
+az network vnet subnet update --vnet-name $site1_vnet_name -n $site1_vm_subnet_name --route-table $site1_vnet_name -g $rg -o none
+
+# site2 route table
+echo -e "\e[1;36mDeploying $site2_vnet_name route table and attaching it to $site2_vm_subnet_name subnet...\e[0m"
+az network route-table create -n $site2_vnet_name -g $rg -l $location -o none
+az network route-table route create --address-prefix $site1_vnet_address -n to-$site1_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site2_vnet_name --next-hop-ip-address $site2_gw_private_ip -o none
+az network route-table route create --address-prefix $site3_vnet_address -n to-$site3_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site2_vnet_name --next-hop-ip-address $site2_gw_private_ip -o none
+az network vnet subnet update --vnet-name $site2_vnet_name -n $site2_vm_subnet_name --route-table $site2_vnet_name -g $rg -o none
+
+# site3 route table
+echo -e "\e[1;36mDeploying $site3_vnet_name route table and attaching it to $site3_vm_subnet_name subnet...\e[0m"
+az network route-table create -n $site3_vnet_name -g $rg -l $location -o none
+az network route-table route create --address-prefix $site1_vnet_address -n to-$site1_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site3_vnet_name --next-hop-ip-address $site3_gw_private_ip -o none
+az network route-table route create --address-prefix $site2_vnet_address -n to-$site2_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site3_vnet_name --next-hop-ip-address $site3_gw_private_ip -o none
+az network vnet subnet update --vnet-name $site3_vnet_name -n $site3_vm_subnet_name --route-table $site3_vnet_name -g $rg -o none
 
 #######################
 # site1 VPN Config  #
@@ -134,7 +173,6 @@ ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo system
 
 # clean up config files
 rm $psk_file $ipsec_file $cloudinit_file
-
 
 #######################
 # site2 VPN Config  #
@@ -243,20 +281,23 @@ echo -e "\e[1;36mChecking IPSec status on $site3_vnet_name-gw...\e[0m"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo ipsec status"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo ipsec statusall"
 
-echo -e "\e[1;36mChecking connectivity from $site1_vnet_name-gw VM to $site2_vnet_name-gw VM...\e[0m"
+echo -e "\e[1;36mChecking connectivity from $site1_vnet_name-gw VM to $site2_vnet_name and to $site3_vnet_name...\e[0m"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ping $site2_gw_private_ip -c 3"
-echo -e "\e[1;36mChecking connectivity from $site1_vnet_name-gw VM to $site3_vnet_name-gw VM...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ping $site2_vm_ip -c 3"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ping $site3_gw_private_ip -c 3"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ping $site3_vm_ip -c 3"
 
-echo -e "\e[1;36mChecking connectivity from $site2_vnet_name-gw VM to $site1_vnet_name-gw VM...\e[0m"
+echo -e "\e[1;36mChecking connectivity from $site2_vnet_name-gw VM to $site1_vnet_name and to $site2_vnet_name...\e[0m"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "ping $site1_gw_private_ip -c 3"
-echo -e "\e[1;36mChecking connectivity from $site2_vnet_name-gw VM to $site3_vnet_name-gw VM...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "ping $site1_vm_ip -c 3"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "ping $site3_gw_private_ip -c 3"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "ping $site3_vm_ip -c 3"
 
-echo -e "\e[1;36mChecking connectivity from $site3_vnet_name-gw VM to $site1_vnet_name-gw VM...\e[0m"
+echo -e "\e[1;36mChecking connectivity from $site3_vnet_name-gw VM to $site1_vnet_name and to $site3_vnet_name...\e[0m"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "ping $site1_gw_private_ip -c 3"
-echo -e "\e[1;36mChecking connectivity from $site2_vnet_name-gw VM to $site2_vnet_name-gw VM...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "ping $site1_vm_ip -c 3"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "ping $site2_gw_private_ip -c 3"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "ping $site2_vm_ip -c 3"
 
 #cleanup
 # az group delete -g $rg -y --no-wait
