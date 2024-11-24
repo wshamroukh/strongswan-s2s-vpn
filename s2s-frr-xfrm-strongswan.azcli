@@ -39,8 +39,6 @@ runcmd:
   - cp /etc/ipsec.secrets /etc/ipsec.secrets.bak
   - echo "net.ipv4.conf.all.forwarding=1" | sudo tee -a /etc/sysctl.conf
   - echo "net.ipv4.conf.default.forwarding=1" | sudo tee -a /etc/sysctl.conf
-  - echo "net.ipv4.conf.all.accept_redirects=0" | sudo tee -a /etc/sysctl.conf
-  - echo "net.ipv4.conf.all.send_redirects=0" | sudo tee -a /etc/sysctl.conf
   - sudo sysctl -p
 EOF
 

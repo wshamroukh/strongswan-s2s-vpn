@@ -48,11 +48,8 @@ runcmd:
   - chmod +x /etc/strongswan.d/ipsec-vti.sh
   - cp /etc/ipsec.conf /etc/ipsec.conf.bak
   - cp /etc/ipsec.secrets /etc/ipsec.secrets.bak
-  - echo "net.ipv4.conf.all.forwarding=1" | sudo tee /etc/sysctl.conf
-  - echo "net.ipv4.conf.default.forwarding=1" | sudo tee /etc/sysctl.conf
-  - echo "net.ipv4.conf.all.accept_redirects=0" | sudo tee /etc/sysctl.conf
-  - echo "net.ipv4.conf.all.send_redirects=0" | sudo tee /etc/sysctl.conf
-  - sed -i 's/# install_routes = yes/install_routes = no/' /etc/strongswan.d/charon.conf
+  - echo "net.ipv4.conf.all.forwarding=1" | sudo tee -a /etc/sysctl.conf
+  - echo "net.ipv4.conf.default.forwarding=1" | sudo tee -a /etc/sysctl.conf
   - sudo sysctl -p
 EOF
 
