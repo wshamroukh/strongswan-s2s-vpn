@@ -64,7 +64,7 @@ az network vnet subnet create -g $rg -n $site3_gw_subnet_name --address-prefixes
 # site1 gw
 echo -e "\e[1;36mDeploying $site1_vnet_name-gw VM...\e[0m"
 az network public-ip create -g $rg -n $site1_vnet_name-gw -l $location --allocation-method Static --sku Basic -o none
-az network nic create -g $rg  -n $site1_vnet_name-gw -l $location --vnet-name $site1_vnet_name --subnet $site1_gw_subnet_name --ip-forwarding true --public-ip-address $site1_vnet_name-gw -o none
+az network nic create -g $rg -n $site1_vnet_name-gw -l $location --vnet-name $site1_vnet_name --subnet $site1_gw_subnet_name --ip-forwarding true --public-ip-address $site1_vnet_name-gw -o none
 az vm create -g $rg -n $site1_vnet_name-gw -l $location --image $vm_image --nics $site1_vnet_name-gw --os-disk-name $site1_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file --no-wait
 # site1 gw details
 site1_gw_pubip=$(az network public-ip show -g $rg -n $site1_vnet_name-gw --query ipAddress -o tsv) && echo $site1_vnet_name-gw public ip: $site1_gw_pubip
@@ -73,7 +73,7 @@ site1_gw_private_ip=$(az network nic show -g $rg -n $site1_vnet_name-gw --query 
 # site2 gw
 echo -e "\e[1;36mDeploying $site2_vnet_name-gw VM...\e[0m"
 az network public-ip create -g $rg -n $site2_vnet_name-gw -l $location --allocation-method Static --sku Basic -o none
-az network nic create -g $rg  -n $site2_vnet_name-gw -l $location --vnet-name $site2_vnet_name --subnet $site2_gw_subnet_name --ip-forwarding true --public-ip-address $site2_vnet_name-gw -o none
+az network nic create -g $rg -n $site2_vnet_name-gw -l $location --vnet-name $site2_vnet_name --subnet $site2_gw_subnet_name --ip-forwarding true --public-ip-address $site2_vnet_name-gw -o none
 az vm create -g $rg -n $site2_vnet_name-gw -l $location --image $vm_image --nics $site2_vnet_name-gw --os-disk-name $site2_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file --no-wait
 # site2 gw details
 site2_gw_pubip=$(az network public-ip show -g $rg -n $site2_vnet_name-gw --query ipAddress -o tsv) && echo $site2_vnet_name-gw public ip: $site2_gw_pubip
@@ -82,7 +82,7 @@ site2_gw_private_ip=$(az network nic show -g $rg -n $site2_vnet_name-gw --query 
 # site3 gw
 echo -e "\e[1;36mDeploying $site3_vnet_name-gw VM...\e[0m"
 az network public-ip create -g $rg -n $site3_vnet_name-gw -l $location --allocation-method Static --sku Basic -o none
-az network nic create -g $rg  -n $site3_vnet_name-gw -l $location --vnet-name $site3_vnet_name --subnet $site3_gw_subnet_name --ip-forwarding true --public-ip-address $site3_vnet_name-gw -o none
+az network nic create -g $rg -n $site3_vnet_name-gw -l $location --vnet-name $site3_vnet_name --subnet $site3_gw_subnet_name --ip-forwarding true --public-ip-address $site3_vnet_name-gw -o none
 az vm create -g $rg -n $site3_vnet_name-gw -l $location --image $vm_image --nics $site3_vnet_name-gw --os-disk-name $site3_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file --no-wait
 # site3 gw details
 site3_gw_pubip=$(az network public-ip show -g $rg -n $site3_vnet_name-gw --query ipAddress -o tsv) && echo $site3_vnet_name-gw public ip: $site3_gw_pubip
