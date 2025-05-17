@@ -1,1 +1,2 @@
 ## S2S VPN using FRR and Strongswan
+This repo contains different scripts to deploy Ubuntu server on Azure cloud where we are simulating S2S VPN connections, either static routing, or bgp (using frr) with VTI or XFRM interfaces

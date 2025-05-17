@@ -23,9 +23,8 @@ admin_username=$(whoami)
 myip=$(curl -s4 https://ifconfig.co/)
 psk=secret12345
 vm_size=Standard_B2ats_v2
-vm_image=$(az vm image list -l $location -p Canonical -s 22_04-lts --all --query "[?offer=='0001-com-ubuntu-server-jammy'].urn" -o tsv | sort -u | tail -n 1) && echo $vm_image
 
-cloudinit_file=~/cloudinit.txt
+cloudinit_file=cloudinit.txt
 cat <<EOF > $cloudinit_file
 #cloud-config
 runcmd:
@@ -69,20 +68,20 @@ az network vnet subnet create -g $rg -n $site2_gw_subnet_name --address-prefixes
 echo -e "\e[1;36mDeploying $site1_vnet_name-gw VM...\e[0m"
 az network public-ip create -g $rg -n $site1_vnet_name-gw -l $location --allocation-method Static --sku Basic -o none
 az network nic create -g $rg -n $site1_vnet_name-gw -l $location --vnet-name $site1_vnet_name --subnet $site1_gw_subnet_name --ip-forwarding true --public-ip-address $site1_vnet_name-gw -o none
-az vm create -g $rg -n $site1_vnet_name-gw -l $location --image $vm_image --nics $site1_vnet_name-gw --os-disk-name $site1_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file -o none
+az vm create -g $rg -n $site1_vnet_name-gw -l $location --image Ubuntu2404 --nics $site1_vnet_name-gw --os-disk-name $site1_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file -o none
 # site1 gw details
-site1_gw_pubip=$(az network public-ip show -g $rg -n $site1_vnet_name-gw --query ipAddress -o tsv) && echo $site1_vnet_name-gw public ip: $site1_gw_pubip
-site1_gw_private_ip=$(az network nic show -g $rg -n $site1_vnet_name-gw --query ipConfigurations[].privateIPAddress -o tsv)  && echo $site1_vnet_name-gw private ip: $site1_gw_private_ip
+site1_gw_pubip=$(az network public-ip show -g $rg -n $site1_vnet_name-gw --query ipAddress -o tsv | tr -d '\r') && echo $site1_vnet_name-gw public ip: $site1_gw_pubip
+site1_gw_private_ip=$(az network nic show -g $rg -n $site1_vnet_name-gw --query ipConfigurations[].privateIPAddress -o tsv | tr -d '\r')  && echo $site1_vnet_name-gw private ip: $site1_gw_private_ip
 site1_gw_nic_default_gw=$(first_ip $site1_gw_subnet_address) && echo $site1_vnet_name-gw default gateway ip: $site1_gw_nic_default_gw
 
 # site2 gw vm
 echo -e "\e[1;36mDeploying $site2_vnet_name-gw VM...\e[0m"
 az network public-ip create -g $rg -n $site2_vnet_name-gw -l $location --allocation-method Static --sku Basic -o none
 az network nic create -g $rg -n $site2_vnet_name-gw -l $location --vnet-name $site2_vnet_name --subnet $site2_gw_subnet_name --ip-forwarding true --public-ip-address $site2_vnet_name-gw -o none
-az vm create -g $rg -n $site2_vnet_name-gw -l $location --image $vm_image --nics $site2_vnet_name-gw --os-disk-name $site2_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file -o none
+az vm create -g $rg -n $site2_vnet_name-gw -l $location --image Ubuntu2404 --nics $site2_vnet_name-gw --os-disk-name $site2_vnet_name-gw --size $vm_size --admin-username $admin_username --generate-ssh-keys --custom-data $cloudinit_file -o none
 # site2 gw details
-site2_gw_pubip=$(az network public-ip show -g $rg -n $site2_vnet_name-gw --query ipAddress -o tsv) && echo $site2_vnet_name-gw public ip: $site2_gw_pubip
-site2_gw_private_ip=$(az network nic show -g $rg -n $site2_vnet_name-gw --query ipConfigurations[].privateIPAddress -o tsv)  && echo $site2_vnet_name-gw private ip: $site2_gw_private_ip
+site2_gw_pubip=$(az network public-ip show -g $rg -n $site2_vnet_name-gw --query ipAddress -o tsv | tr -d '\r') && echo $site2_vnet_name-gw public ip: $site2_gw_pubip
+site2_gw_private_ip=$(az network nic show -g $rg -n $site2_vnet_name-gw --query ipConfigurations[].privateIPAddress -o tsv | tr -d '\r')  && echo $site2_vnet_name-gw private ip: $site2_gw_private_ip
 site2_gw_nic_default_gw=$(first_ip $site2_gw_subnet_address) && echo $site2_vnet_name-gw default gateway ip: $site2_gw_nic_default_gw
 
 # clear up the cloudinit file
