@@ -229,7 +229,7 @@ EOF
 # frr.conf
 frr_conf_file=~/frr.conf
 cat <<EOF > $frr_conf_file
-frr version 10.2
+frr version 10.3
 frr defaults traditional
 hostname $site1_vnet_name-gw
 log syslog informational
@@ -338,7 +338,7 @@ EOF
 # frr.conf
 frr_conf_file=~/frr.conf
 cat <<EOF > $frr_conf_file
-frr version 10.2
+frr version 10.3
 frr defaults traditional
 hostname $site2_vnet_name-gw
 log syslog informational
