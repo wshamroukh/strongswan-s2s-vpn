@@ -280,32 +280,22 @@ rm $psk_file $ipsec_file
 # Diagnosis #
 #############
 echo -e "\e[1;36mChecking IPSec status on $site1_vnet_name-gw...\e[0m"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo ipsec status"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo ipsec statusall"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo ipsec status && sudo ipsec statusall"
+
 echo -e "\e[1;36mChecking IPSec status on $site2_vnet_name-gw...\e[0m"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo ipsec status"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo ipsec statusall"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo ipsec status && sudo ipsec statusall"
+
 echo -e "\e[1;36mChecking IPSec status on $site3_vnet_name-gw...\e[0m"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo ipsec status"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo ipsec statusall"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo ipsec status && sudo ipsec statusall"
 
 echo -e "\e[1;36mChecking connectivity from $site1_vnet_name-gw VM to $site2_vnet_name and to $site3_vnet_name...\e[0m"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ping -c 3 $site2_gw_private_ip"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ping -c 3 $site2_vm_ip"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ping -c 3 $site3_gw_private_ip"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ping -c 3 $site3_vm_ip"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ping -c 3 $site2_gw_private_ip && ping -c 3 $site2_vm_ip && ping -c 3 $site3_gw_private_ip && ping -c 3 $site3_vm_ip"
 
 echo -e "\e[1;36mChecking connectivity from $site2_vnet_name-gw VM to $site1_vnet_name and to $site2_vnet_name...\e[0m"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "ping -c 3 $site1_gw_private_ip"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "ping -c 3 $site1_vm_ip"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "ping -c 3 $site3_gw_private_ip"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "ping -c 3 $site3_vm_ip"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "ping -c 3 $site1_gw_private_ip && ping -c 3 $site1_vm_ip && ping -c 3 $site3_gw_private_ip && ping -c 3 $site3_vm_ip"
 
 echo -e "\e[1;36mChecking connectivity from $site3_vnet_name-gw VM to $site1_vnet_name and to $site3_vnet_name...\e[0m"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "ping -c 3 $site1_gw_private_ip"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "ping -c 3 $site1_vm_ip"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "ping -c 3 $site2_gw_private_ip"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "ping -c 3 $site2_vm_ip"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "ping -c 3 $site1_gw_private_ip && "
 
 #cleanup
 # az group delete -g $rg -y --no-wait
