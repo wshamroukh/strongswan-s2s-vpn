@@ -140,6 +140,7 @@ s2spoke_vm_ip=$(az network nic show -g $rg -n $s2spoke_vnet_name --query ipConfi
 echo -e "\e[1;36mDeploying $site1_vnet_name route table and attaching it to $site1_vm_subnet_name subnet...\e[0m"
 az network route-table create -n $site1_vnet_name -g $rg -l $location -o none
 az network route-table route create --address-prefix $site2_vnet_address -n to-$site2_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site1_vnet_name --next-hop-ip-address $site1_gw_private_ip -o none
+az network route-table route create --address-prefix $s2spoke_vnet_address -n to-$s2spoke_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site1_vnet_name --next-hop-ip-address $site1_gw_private_ip -o none
 az network vnet subnet update --vnet-name $site1_vnet_name -n $site1_vm_subnet_name --route-table $site1_vnet_name -g $rg -o none
 
 # s1spoke route table
@@ -153,6 +154,7 @@ az network vnet subnet update --vnet-name $s1spoke_vnet_name -n $s1spoke_vm_subn
 echo -e "\e[1;36mDeploying $site2_vnet_name route table and attaching it to $site2_vm_subnet_name subnet...\e[0m"
 az network route-table create -n $site2_vnet_name -g $rg -l $location -o none
 az network route-table route create --address-prefix $site1_vnet_address -n to-$site1_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site2_vnet_name --next-hop-ip-address $site2_gw_private_ip -o none
+az network route-table route create --address-prefix $s1spoke_vnet_address -n to-$s1spoke_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site2_vnet_name --next-hop-ip-address $site2_gw_private_ip -o none
 az network vnet subnet update --vnet-name $site2_vnet_name -n $site2_vm_subnet_name --route-table $site2_vnet_name -g $rg -o none
 
 # s2spoke route table
@@ -479,11 +481,16 @@ ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo vtysh 
 echo -e "\e[1;36mChecking advertised routes from $site2_vnet_name-gw to $site1_vnet_name-gw...\e[0m"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo vtysh -c 'show ip bgp neighbors $site1_gw_vti0 advertised-routes'"
 
-echo -e "\e[1;36mTring to checking reachability from $site1_vnet_name-gw vm to $site2_vnet_name...\e[0m"
+echo -e "\e[1;36mTring to checking reachability from $site1_vnet_name-gw vm to $site2_vnet_name and $s2spoke_vnet_name...\e[0m"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ping -c 3 $site2_gw_vti0 && ping -c 3 $site2_vm_ip && ping -c 3 $site2_gw_private_ip && ping -c 3 $s2spoke_vm_ip"
 
-echo -e "\e[1;36mTring to checking reachability from $site2_vnet_name-gw vm to $site1_vnet_name-gw...\e[0m"
+echo -e "\e[1;36mTring to checking reachability from $site2_vnet_name-gw vm to $site1_vnet_name and s1spoke_vnet_name...\e[0m"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "ping -c 3 $site1_gw_vti0 && ping -c 3 $site1_vm_ip && ping -c 3 $site1_gw_private_ip && ping -c 3 $s1spoke_vm_ip"
 
+echo -e "\e[1;36mTring to checking reachability from $s1spoke_vnet_name vm to all toplogy..\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $s1spoke_vm_ip 'ping -c 3 $site2_gw_vti0 && ping -c 3 $site2_vm_ip && ping -c 3 $site2_gw_private_ip && ping -c 3 $s2spoke_vm_ip && ping -c 3 $site1_vm_ip && ping -c 3 $site1_gw_private_ip'"
+
+echo -e "\e[1;36mTring to checking reachability from $s2spoke_vnet_name vm to all toplogy..\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $s2spoke_vm_ip 'ping -c 3 $site1_gw_vti0 && ping -c 3 $site1_vm_ip && ping -c 3 $site1_gw_private_ip && ping -c 3 $s2spoke_vm_ip && ping -c 3 $site2_vm_ip && ping -c 3 $site2_gw_private_ip'"
 #cleanup
 # az group delete -g $rg -y --no-wait
