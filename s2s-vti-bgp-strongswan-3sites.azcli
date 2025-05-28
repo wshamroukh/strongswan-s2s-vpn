@@ -38,7 +38,7 @@ site3_vm_subnet_address=10.3.1.0/24
 s3spoke_vnet_name=s3spoke
 s3spoke_vnet_address=10.13.0.0/24
 s3spoke_vm_subnet_name=vm
-s3spoke_vm_subnet_address=10.12\3.0.0/24
+s3spoke_vm_subnet_address=10.13.0.0/24
 
 advertised_address1=1.1.1.1/32
 advertised_address2=2.2.2.2/32
@@ -136,17 +136,17 @@ az network vnet create -g $rg -n $s2spoke_vnet_name -l $location --address-prefi
 echo -e "\e[1;36mCreating $s3spoke_vnet_name VNet...\e[0m"
 az network vnet create -g $rg -n $s3spoke_vnet_name -l $location --address-prefixes $s3spoke_vnet_address --subnet-name $s3spoke_vm_subnet_name --subnet-prefixes $s3spoke_vm_subnet_address -o none
 
-# site1 spoke vnet peering
+# site1 spoke to site1 vnet peering
 echo -e "\e[1;36mCreating $s1spoke_vnet_name VNet peering...\e[0m"
 az network vnet peering create -g $rg --name $s1spoke_vnet_name-to-$site1_vnet_name --vnet-name $s1spoke_vnet_name --remote-vnet $site1_vnet_name --allow-vnet-access --allow-forwarded-traffic -o none
 az network vnet peering create -g $rg --name $site1_vnet_name-to-$s1spoke_vnet_name --vnet-name $site1_vnet_name --remote-vnet $s1spoke_vnet_name --allow-vnet-access --allow-forwarded-traffic -o none
 
-# site2 spoke vnet peering
+# site2 spoke to site2 vnet peering
 echo -e "\e[1;36mCreating $s2spoke_vnet_name VNet peering...\e[0m"
 az network vnet peering create -g $rg --name $s2spoke_vnet_name-to-$site2_vnet_name --vnet-name $s2spoke_vnet_name --remote-vnet $site2_vnet_name --allow-vnet-access --allow-forwarded-traffic -o none
 az network vnet peering create -g $rg --name $site2_vnet_name-to-$s2spoke_vnet_name --vnet-name $site2_vnet_name --remote-vnet $s2spoke_vnet_name --allow-vnet-access --allow-forwarded-traffic -o none
 
-# site3 spoke vnet peering
+# site3 spoke to site 3 vnet peering
 echo -e "\e[1;36mCreating $s3spoke_vnet_name VNet peering...\e[0m"
 az network vnet peering create -g $rg --name $s3spoke_vnet_name-to-$site3_vnet_name --vnet-name $s3spoke_vnet_name --remote-vnet $site3_vnet_name --allow-vnet-access --allow-forwarded-traffic -o none
 az network vnet peering create -g $rg --name $site3_vnet_name-to-$s3spoke_vnet_name --vnet-name $site3_vnet_name --remote-vnet $s3spoke_vnet_name --allow-vnet-access --allow-forwarded-traffic -o none
