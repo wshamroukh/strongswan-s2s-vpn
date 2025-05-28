@@ -232,7 +232,6 @@ IP=$(which ip)
 IPTABLES=$(which iptables)
 PLUTO_MARK_OUT_ARR=(${PLUTO_MARK_OUT//// })
 PLUTO_MARK_IN_ARR=(${PLUTO_MARK_IN//// })
-echo "`date` ${PLUTO_VERB} $VTI_INTERFACE" >> /tmp/vtitrace.log
 PLUTO_CONNECTION=$site2_vnet_name-gw
 VTI_INTERFACE=vti0
 VTI_LOCALADDR=$site1_gw_vti0/32
@@ -375,11 +374,11 @@ IP=$(which ip)
 IPTABLES=$(which iptables)
 PLUTO_MARK_OUT_ARR=(${PLUTO_MARK_OUT//// })
 PLUTO_MARK_IN_ARR=(${PLUTO_MARK_IN//// })
-echo "`date` ${PLUTO_VERB} $VTI_INTERFACE" >> /tmp/vtitrace.log
 PLUTO_CONNECTION=$site1_vnet_name-gw
 VTI_INTERFACE=vti0
 VTI_LOCALADDR=$site2_gw_vti0/32
 VTI_REMOTEADDR=$site1_gw_vti0/32
+echo "`date` - ${PLUTO_VERB} - ${PLUTO_CONNECTION} - $VTI_INTERFACE" >> /tmp/vtitrace.log
 case "${PLUTO_VERB}" in
     up-client)
         $IP link add ${VTI_INTERFACE} type vti local ${PLUTO_ME} remote ${PLUTO_PEER} okey ${PLUTO_MARK_OUT_ARR[0]} ikey ${PLUTO_MARK_IN_ARR[0]}
