@@ -270,7 +270,7 @@ echo -e "\e[1;36mCopying and applying S2S VPN Config files to $site3_vnet_name-g
 scp -o StrictHostKeyChecking=no $psk_file $ipsec_file $site3_gw_pubip:/home/$admin_username
 scp -o StrictHostKeyChecking=no ~/.ssh/id_rsa $site3_gw_pubip:/home/$admin_username/.ssh/
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo mv /home/$admin_username/ipsec.* /etc/"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo systemctl restart ipsec && sudo systemctl enable ipsec"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo systemctl restart ipsec"
 
 # clean up config files
 rm $psk_file $ipsec_file
