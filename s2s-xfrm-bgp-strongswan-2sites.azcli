@@ -192,7 +192,7 @@ connections {
         local_addrs  = $site1_gw_private_ip
         remote_addrs = $site2_gw_pubip
         version = 2
-        proposals = aes256-sha1-modp1024,aes192-sha256-modp3072,default
+        proposals = aes256-sha256-modp2048,aes192-sha256-modp3072,default
         keyingtries = 0
         encap = yes
         local {
@@ -301,7 +301,7 @@ connections {
         local_addrs  = $site2_gw_private_ip
         remote_addrs = $site1_gw_pubip
         version = 2
-        proposals = aes256-sha1-modp1024,aes192-sha256-modp3072,default
+        proposals = aes256-sha256-modp2048,aes192-sha256-modp3072,default
         keyingtries = 0
         encap = yes
         local {
