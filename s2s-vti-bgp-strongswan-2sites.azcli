@@ -214,7 +214,7 @@ conn $site2_vnet_name-gw
          # Azure VPN Gateway Public IP address :
          right=$site2_gw_pubip
          rightid=$site2_gw_pubip
-         auto=start
+         auto=add
          # unique number per IPSEC Tunnel eg. 100, 101 etc
          mark=101
 EOF
@@ -455,6 +455,10 @@ rm $psk_file $ipsec_file $ipsec_vti_file $frr_conf_file
 #############
 # Diagnosis #
 #############
+echo -e "\e[1;36mRestarting IPSec on $site1_vnet_name-gw and $site2_vnet_name-gw...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo ipsec restart"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo ipsec restart"
+
 echo -e "\e[1;36mChecking the IPsec VPN tunnel on $site1_vnet_name-gw gateway vm...\e[0m"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo ipsec statusall && ip a && ip route"
 
