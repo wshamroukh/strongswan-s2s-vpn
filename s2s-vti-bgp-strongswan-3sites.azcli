@@ -9,6 +9,7 @@ site1_gw_asn=65501
 site1_gw_vti0=10.1.0.250
 site1_vm_subnet_name=vm
 site1_vm_subnet_address=10.1.1.0/24
+
 s1spoke_vnet_name=s1spoke
 s1spoke_vnet_address=10.11.0.0/24
 s1spoke_vm_subnet_name=vm
@@ -22,6 +23,7 @@ site2_gw_asn=65502
 site2_gw_vti0=10.2.0.250
 site2_vm_subnet_name=vm
 site2_vm_subnet_address=10.2.1.0/24
+
 s2spoke_vnet_name=s2spoke
 s2spoke_vnet_address=10.12.0.0/24
 s2spoke_vm_subnet_name=vm
@@ -35,6 +37,7 @@ site3_gw_asn=65503
 site3_gw_vti0=10.3.0.250
 site3_vm_subnet_name=vm
 site3_vm_subnet_address=10.3.1.0/24
+
 s3spoke_vnet_name=s3spoke
 s3spoke_vnet_address=10.13.0.0/24
 s3spoke_vm_subnet_name=vm
@@ -192,11 +195,15 @@ echo -e "\e[1;36mDeploying $site1_vnet_name route table and attaching it to $sit
 az network route-table create -n $site1_vnet_name -g $rg -l $location -o none
 az network route-table route create --address-prefix $site2_vnet_address -n to-$site2_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site1_vnet_name --next-hop-ip-address $site1_gw_private_ip -o none
 az network route-table route create --address-prefix $site3_vnet_address -n to-$site3_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site1_vnet_name --next-hop-ip-address $site1_gw_private_ip -o none
+az network route-table route create --address-prefix $s1spoke_vnet_address -n to-$s1spoke_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site1_vnet_name --next-hop-ip-address $site1_gw_private_ip -o none
+az network route-table route create --address-prefix $s2spoke_vnet_address -n to-$s2spoke_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site1_vnet_name --next-hop-ip-address $site1_gw_private_ip -o none
+az network route-table route create --address-prefix $s3spoke_vnet_address -n to-$s3spoke_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site1_vnet_name --next-hop-ip-address $site1_gw_private_ip -o none
 az network vnet subnet update --vnet-name $site1_vnet_name -n $site1_vm_subnet_name --route-table $site1_vnet_name -g $rg -o none
 
 # s1spoke route table
 echo -e "\e[1;36mDeploying $s1spoke_vnet_name route table and attaching it to $s1spoke_vm_subnet_name subnet...\e[0m"
 az network route-table create -n $s1spoke_vnet_name -g $rg -l $location -o none
+az network route-table route create --address-prefix $site1_vnet_address -n to-$site1_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $s1spoke_vnet_name --next-hop-ip-address $site1_gw_private_ip -o none
 az network route-table route create --address-prefix $site2_vnet_address -n to-$site2_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $s1spoke_vnet_name --next-hop-ip-address $site1_gw_private_ip -o none
 az network route-table route create --address-prefix $site3_vnet_address -n to-$site3_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $s1spoke_vnet_name --next-hop-ip-address $site1_gw_private_ip -o none
 az network route-table route create --address-prefix $s2spoke_vnet_address -n to-$s2spoke_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $s1spoke_vnet_name --next-hop-ip-address $site1_gw_private_ip -o none
@@ -208,12 +215,16 @@ echo -e "\e[1;36mDeploying $site2_vnet_name route table and attaching it to $sit
 az network route-table create -n $site2_vnet_name -g $rg -l $location -o none
 az network route-table route create --address-prefix $site1_vnet_address -n to-$site1_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site2_vnet_name --next-hop-ip-address $site2_gw_private_ip -o none
 az network route-table route create --address-prefix $site3_vnet_address -n to-$site3_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site2_vnet_name --next-hop-ip-address $site2_gw_private_ip -o none
+az network route-table route create --address-prefix $s1spoke_vnet_address -n to-$s1spoke_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site2_vnet_name --next-hop-ip-address $site2_gw_private_ip -o none
+az network route-table route create --address-prefix $s2spoke_vnet_address -n to-$s2spoke_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site2_vnet_name --next-hop-ip-address $site2_gw_private_ip -o none
+az network route-table route create --address-prefix $s3spoke_vnet_address -n to-$s3spoke_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site2_vnet_name --next-hop-ip-address $site2_gw_private_ip -o none
 az network vnet subnet update --vnet-name $site2_vnet_name -n $site2_vm_subnet_name --route-table $site2_vnet_name -g $rg -o none
 
 # s2spoke route table
 echo -e "\e[1;36mDeploying $s2spoke_vnet_name route table and attaching it to $s2spoke_vm_subnet_name subnet...\e[0m"
 az network route-table create -n $s2spoke_vnet_name -g $rg -l $location -o none
 az network route-table route create --address-prefix $site1_vnet_address -n to-$site1_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $s2spoke_vnet_name --next-hop-ip-address $site2_gw_private_ip -o none
+az network route-table route create --address-prefix $site2_vnet_address -n to-$site2_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $s2spoke_vnet_name --next-hop-ip-address $site2_gw_private_ip -o none
 az network route-table route create --address-prefix $site3_vnet_address -n to-$site3_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $s2spoke_vnet_name --next-hop-ip-address $site2_gw_private_ip -o none
 az network route-table route create --address-prefix $s1spoke_vnet_address -n to-$s1spoke_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $s2spoke_vnet_name --next-hop-ip-address $site2_gw_private_ip -o none
 az network route-table route create --address-prefix $s3spoke_vnet_address -n to-$s3spoke_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $s2spoke_vnet_name --next-hop-ip-address $site2_gw_private_ip -o none
@@ -224,6 +235,9 @@ echo -e "\e[1;36mDeploying $site3_vnet_name route table and attaching it to $sit
 az network route-table create -n $site3_vnet_name -g $rg -l $location -o none
 az network route-table route create --address-prefix $site1_vnet_address -n to-$site1_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site3_vnet_name --next-hop-ip-address $site3_gw_private_ip -o none
 az network route-table route create --address-prefix $site2_vnet_address -n to-$site2_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site3_vnet_name --next-hop-ip-address $site3_gw_private_ip -o none
+az network route-table route create --address-prefix $s1spoke_vnet_address -n to-$s1spoke_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site3_vnet_name --next-hop-ip-address $site3_gw_private_ip -o none
+az network route-table route create --address-prefix $s2spoke_vnet_address -n to-$s2spoke_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site3_vnet_name --next-hop-ip-address $site3_gw_private_ip -o none
+az network route-table route create --address-prefix $s3spoke_vnet_address -n to-$s3spoke_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $site3_vnet_name --next-hop-ip-address $site3_gw_private_ip -o none
 az network vnet subnet update --vnet-name $site3_vnet_name -n $site3_vm_subnet_name --route-table $site3_vnet_name -g $rg -o none
 
 # s3spoke route table
@@ -231,6 +245,7 @@ echo -e "\e[1;36mDeploying $s3spoke_vnet_name route table and attaching it to $s
 az network route-table create -n $s3spoke_vnet_name -g $rg -l $location -o none
 az network route-table route create --address-prefix $site1_vnet_address -n to-$site1_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $s3spoke_vnet_name --next-hop-ip-address $site3_gw_private_ip -o none
 az network route-table route create --address-prefix $site2_vnet_address -n to-$site2_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $s3spoke_vnet_name --next-hop-ip-address $site3_gw_private_ip -o none
+az network route-table route create --address-prefix $site3_vnet_address -n to-$site3_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $s3spoke_vnet_name --next-hop-ip-address $site3_gw_private_ip -o none
 az network route-table route create --address-prefix $s1spoke_vnet_address -n to-$s1spoke_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $s3spoke_vnet_name --next-hop-ip-address $site3_gw_private_ip -o none
 az network route-table route create --address-prefix $s2spoke_vnet_address -n to-$s2spoke_vnet_name -g $rg --next-hop-type VirtualAppliance --route-table-name $s3spoke_vnet_name --next-hop-ip-address $site3_gw_private_ip -o none
 az network vnet subnet update --vnet-name $s3spoke_vnet_name -n $s3spoke_vm_subnet_name --route-table $s3spoke_vnet_name -g $rg -o none
@@ -285,7 +300,7 @@ conn $site2_vnet_name-gw
          # Azure VPN Gateway Public IP address :
          right=$site2_gw_pubip
          rightid=$site2_gw_pubip
-         auto=start
+         auto=add
          # unique number per IPSEC Tunnel eg. 100, 101 etc
          mark=101
 conn $site3_vnet_name-gw
@@ -296,7 +311,7 @@ conn $site3_vnet_name-gw
          # Azure VPN Gateway Public IP address :
          right=$site3_gw_pubip
          rightid=$site3_gw_pubip
-         auto=start
+         auto=add
          # unique number per IPSEC Tunnel eg. 100, 101 etc
          mark=102
 EOF
@@ -398,10 +413,12 @@ EOF
 ##### copy files to onprem gw
 echo -e "\e[1;36mCopying and applying S2S/BGP VPN Config files to $site1_vnet_name-gw gateway VM...\e[0m"
 scp -o StrictHostKeyChecking=no $psk_file $ipsec_file $ipsec_vti_file $frr_conf_file $site1_gw_pubip:/home/$admin_username
+scp -o StrictHostKeyChecking=no ~/.ssh/id_rsa $site1_gw_pubip:/home/$admin_username/.ssh/
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo mv /home/$admin_username/frr.conf /etc/frr/frr.conf"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo mv /home/$admin_username/ipsec.* /etc/"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo mv /home/$admin_username/ipsec-vti.sh /etc/strongswan.d/"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo chmod +x /etc/strongswan.d/ipsec-vti.sh"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo ipsec restart"
 
 # clean up config files
 rm $psk_file $ipsec_file $ipsec_vti_file $frr_conf_file
@@ -566,10 +583,12 @@ EOF
 ##### copy files to onprem gw
 echo -e "\e[1;36mCopying and applying S2S/BGP VPN Config files to $site2_vnet_name-gw gateway VM...\e[0m"
 scp -o StrictHostKeyChecking=no $psk_file $ipsec_file $ipsec_vti_file $frr_conf_file $site2_gw_pubip:/home/$admin_username
+scp -o StrictHostKeyChecking=no ~/.ssh/id_rsa $site2_gw_pubip:/home/$admin_username/.ssh/
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo mv /home/$admin_username/frr.conf /etc/frr/frr.conf"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo mv /home/$admin_username/ipsec.* /etc/"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo mv /home/$admin_username/ipsec-vti.sh /etc/strongswan.d/"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo chmod +x /etc/strongswan.d/ipsec-vti.sh"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo ipsec restart"
 
 # clean up config files
 rm $psk_file $ipsec_file $ipsec_vti_file $frr_conf_file
@@ -734,10 +753,12 @@ EOF
 ##### copy files to onprem gw
 echo -e "\e[1;36mCopying and applying S2S/BGP VPN Config files to $site3_vnet_name-gw gateway VM...\e[0m"
 scp -o StrictHostKeyChecking=no $psk_file $ipsec_file $ipsec_vti_file $frr_conf_file $site3_gw_pubip:/home/$admin_username
+scp -o StrictHostKeyChecking=no ~/.ssh/id_rsa $site3_gw_pubip:/home/$admin_username/.ssh/
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo mv /home/$admin_username/frr.conf /etc/frr/frr.conf"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo mv /home/$admin_username/ipsec.* /etc/"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo mv /home/$admin_username/ipsec-vti.sh /etc/strongswan.d/"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo chmod +x /etc/strongswan.d/ipsec-vti.sh"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo ipsec restart"
 
 # clean up config files
 rm $psk_file $ipsec_file $ipsec_vti_file $frr_conf_file
@@ -746,16 +767,16 @@ rm $psk_file $ipsec_file $ipsec_vti_file $frr_conf_file
 # Diagnosis #
 #############
 echo -e "\e[1;36mChecking the IPsec VPN tunnel on $site1_vnet_name-gw gateway vm...\e[0m"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo ipsec statusall && ip a && ip route"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo ipsec status && sudo ipsec statusall"
 
 echo -e "\e[1;36mChecking the IPsec VPN tunnel on $site2_vnet_name-gw gateway vm...\e[0m"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo ipsec statusall && ip a && ip route"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo ipsec status && sudo ipsec statusall"
 
 echo -e "\e[1;36mChecking the IPsec VPN tunnel on $site3_vnet_name-gw gateway vm...\e[0m"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo ipsec statusall && ip a && ip route"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo ipsec status && sudo ipsec statusall"
 
 echo -e "\e[1;36mChecking BGP routing on $site1_vnet_name-gw gateway vm...\e[0m"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo vtysh -c 'show bgp summary' && sudo vtysh -c 'show bgp all' && sudo vtysh -c 'show int brief' && sudo vtysh -c 'show ip route'"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo vtysh -c 'show bgp summary' && sudo vtysh -c 'show bgp all' && sudo vtysh -c 'show ip route bgp'"
 
 echo -e "\e[1;36mChecking received routes on $site1_vnet_name-gw from $site2_vnet_name-gw...\e[0m"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo vtysh -c 'show ip bgp neighbors $site2_gw_vti0 received-routes'"
@@ -770,7 +791,7 @@ echo -e "\e[1;36mChecking advertised routes from $site1_vnet_name-gw to $site3_v
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "sudo vtysh -c 'show ip bgp neighbors $site3_gw_vti0 advertised-routes'"
 
 echo -e "\e[1;36mChecking BGP routing on $site2_vnet_name-gw gateway vm...\e[0m"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo vtysh -c 'show bgp summary' && sudo vtysh -c 'show bgp all' && sudo vtysh -c 'show int brief' && sudo vtysh -c 'show ip route'"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo vtysh -c 'show bgp summary' && sudo vtysh -c 'show bgp all' && sudo vtysh -c 'show ip route bgp'"
 
 echo -e "\e[1;36mChecking received routes on $site2_vnet_name-gw from $site1_vnet_name-gw...\e[0m"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo vtysh -c 'show ip bgp neighbors $site1_gw_vti0 received-routes'"
@@ -785,7 +806,7 @@ echo -e "\e[1;36mChecking advertised routes from $site2_vnet_name-gw to $site3_v
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "sudo vtysh -c 'show ip bgp neighbors $site3_gw_vti0 advertised-routes'"
 
 echo -e "\e[1;36mChecking BGP routing on $site3_vnet_name-gw gateway vm...\e[0m"
-ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo vtysh -c 'show bgp summary' && sudo vtysh -c 'show bgp all' && sudo vtysh -c 'show int brief' && sudo vtysh -c 'show ip route'"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo vtysh -c 'show bgp summary' && sudo vtysh -c 'show bgp all' && sudo vtysh -c 'show ip route bgp'"
 
 echo -e "\e[1;36mChecking received routes on $site3_vnet_name-gw from $site1_vnet_name-gw...\e[0m"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "sudo vtysh -c 'show ip bgp neighbors $site1_gw_vti0 received-routes'"
@@ -805,6 +826,24 @@ ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_gw_pubip "ping -c 3 $
 
 echo -e "\e[1;36mTring to checking reachability from $site3_vnet_name-gw vm to $site1_vnet_name and to $site2_vnet_name...\e[0m"
 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_gw_pubip "ping -c 3 $site1_gw_vti0 && ping -c 3 $site1_gw_private_ip && ping -c 3 $site1_vm_ip && ping -c 3 $site2_gw_vti0 && ping -c 3 $site2_gw_private_ip && ping -c 3 $site2_vm_ip && ping -c 3 $s1spoke_vm_ip && ping -c 3 $s2spoke_vm_ip && ping -c 3 $s3spoke_vm_ip"
+
+echo -e "\e[1;36mTring to checking reachability from $site1_vnet_name vm to rest of network topology...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_vm_ip 'ping -c 3 $site1_gw_private_ip && ping -c 3 $site2_gw_private_ip && ping -c 3 $site3_gw_private_ip && ping -c 3 $site2_vm_ip && ping -c 3 $site3_vm_ip && ping -c 3 $s1spoke_vm_ip && ping -c 3 $s2spoke_vm_ip && ping -c 3 $s3spoke_vm_ip'"
+
+echo -e "\e[1;36mTring to checking reachability from $site2_vnet_name vm to rest of network topology...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site2_vm_ip 'ping -c 3 $site1_gw_private_ip && ping -c 3 $site2_gw_private_ip && ping -c 3 $site3_gw_private_ip && ping -c 3 $site1_vm_ip && ping -c 3 $site3_vm_ip && ping -c 3 $s1spoke_vm_ip && ping -c 3 $s2spoke_vm_ip && ping -c 3 $s3spoke_vm_ip'"
+
+echo -e "\e[1;36mTring to checking reachability from $site3_vnet_name vm to rest of network topology...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site3_vm_ip 'ping -c 3 $site1_gw_private_ip && ping -c 3 $site2_gw_private_ip && ping -c 3 $site3_gw_private_ip && ping -c 3 $site1_vm_ip && ping -c 3 $site2_vm_ip && ping -c 3 $s1spoke_vm_ip && ping -c 3 $s2spoke_vm_ip && ping -c 3 $s3spoke_vm_ip'"
+
+echo -e "\e[1;36mTring to checking reachability from $s1spoke_vnet_name vm to rest of network topology...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $s1spoke_vm_ip 'ping -c 3 $site1_gw_private_ip && ping -c 3 $site2_gw_private_ip && ping -c 3 $site3_gw_private_ip && ping -c 3 $site1_vm_ip && ping -c 3 $site2_vm_ip && ping -c 3 $site3_vm_ip && ping -c 3 $s2spoke_vm_ip && ping -c 3 $s3spoke_vm_ip'"
+
+echo -e "\e[1;36mTring to checking reachability from $s2spoke_vnet_name vm to rest of network topology...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $s2spoke_vm_ip 'ping -c 3 $site1_gw_private_ip && ping -c 3 $site2_gw_private_ip && ping -c 3 $site3_gw_private_ip && ping -c 3 $site1_vm_ip && ping -c 3 $site2_vm_ip && ping -c 3 $site3_vm_ip && ping -c 3 $s1spoke_vm_ip && ping -c 3 $s3spoke_vm_ip'"
+
+echo -e "\e[1;36mTring to checking reachability from $s3spoke_vnet_name vm to rest of network topology...\e[0m"
+ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $site1_gw_pubip "ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no $s3spoke_vm_ip 'ping -c 3 $site1_gw_private_ip && ping -c 3 $site2_gw_private_ip && ping -c 3 $site3_gw_private_ip && ping -c 3 $site1_vm_ip && ping -c 3 $site2_vm_ip && ping -c 3 $site3_vm_ip && ping -c 3 $s1spoke_vm_ip && ping -c 3 $s2spoke_vm_ip'"
 
 #cleanup
 # az group delete -g $rg -y --no-wait
