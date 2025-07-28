@@ -373,7 +373,7 @@ sed -i "/\$site1_gw_nic_default_gw/ s//$site1_gw_nic_default_gw/" $ipsec_xfrm_fi
 # frr.conf
 frr_conf_file=~/frr.conf
 cat <<EOF > $frr_conf_file
-frr version 10.3
+frr version 10.4.0
 frr defaults traditional
 hostname $site1_vnet_name-gw
 log syslog informational
@@ -552,7 +552,7 @@ sed -i "/\$site2_gw_nic_default_gw/ s//$site2_gw_nic_default_gw/" $ipsec_xfrm_fi
 # frr.conf
 frr_conf_file=~/frr.conf
 cat <<EOF > $frr_conf_file
-frr version 10.3
+frr version 10.4.0
 frr defaults traditional
 hostname $site2_vnet_name-gw
 log syslog informational
@@ -733,7 +733,7 @@ sed -i "/\$site3_gw_nic_default_gw/ s//$site3_gw_nic_default_gw/" $ipsec_xfrm_fi
 # frr.conf
 frr_conf_file=~/frr.conf
 cat <<EOF > $frr_conf_file
-frr version 10.3
+frr version 10.4.0
 frr defaults traditional
 hostname $site2_vnet_name-gw
 log syslog informational
